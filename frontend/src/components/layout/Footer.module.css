@@ -1,0 +1,19 @@
+.footer {
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  padding: 24px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.muted {
+  opacity: 0.8;
+}

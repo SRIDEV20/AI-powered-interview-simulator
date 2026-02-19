@@ -1,0 +1,33 @@
+.header {
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(10px);
+  background: rgba(11, 16, 32, 0.55);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+
+.nav {
+  display: flex;
+  gap: 24px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.nav a:hover {
+  color: var(--text);
+  transition: color 150ms ease;
+}
