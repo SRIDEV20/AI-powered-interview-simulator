@@ -8,6 +8,7 @@ FastAPI backend for the AI Interview Simulator project with PostgreSQL database 
 - **Server**: Uvicorn 0.24.0
 - **Database**: PostgreSQL 18 + SQLAlchemy 2.0.35
 - **Authentication**: JWT (python-jose) + bcrypt
+- **Password Hashing**: bcrypt 4.0.1 (passlib)
 - **Migrations**: Alembic 1.12.1
 - **Validation**: Pydantic 2.12.5
 
@@ -16,26 +17,31 @@ FastAPI backend for the AI Interview Simulator project with PostgreSQL database 
 ```
 backend/
 ├── app/
-│   ├── api/              # API routes/endpoints
-│   ├── core/             # Configuration & database
-│   │   ├── config.py     # Settings management
-│   │   └── database.py   # Database connection
-│   ├── models/           # SQLAlchemy ORM models
+│   ├── api/                  # API routes/endpoints
+│   │   ├── __init__.py
+│   │   └── auth.py           # ✅ Day 6 - Auth routes (register)
+│   ├── core/                 # Configuration & database
+│   │   ├── config.py         # Settings management
+│   │   ├── database.py       # Database connection
+│   │   └── security.py       # ✅ Day 6 - bcrypt & JWT utils
+│   ├── models/               # SQLAlchemy ORM models
 │   │   ├── user.py
 │   │   ├── interview.py
 │   │   ├── question.py
 │   │   ├── response.py
 │   │   └── skill_gap.py
-│   ├── schemas/          # Pydantic schemas (API validation)
-│   └── services/         # Business logic
-├── alembic/              # Database migrations
-│   ├── versions/         # Migration files
-│   └── env.py           # Alembic configuration
-├── venv/                 # Virtual environment (not in git)
-├── .env                  # Environment variables (not in git)
-├── alembic.ini           # Alembic settings
-├── main.py               # Application entry point
-├── requirements.txt      # Python dependencies
+│   ├── schemas/              # ✅ Day 6 - Pydantic schemas
+│   │   ├── __init__.py
+│   │   └── user.py           # UserCreate, UserResponse, Token schemas
+│   └── services/             # Business logic (coming soon)
+├── alembic/                  # Database migrations
+│   ├── versions/             # Migration files
+│   └── env.py                # Alembic configuration
+├── venv/                     # Virtual environment (not in git)
+├── .env                      # Environment variables (not in git)
+├── alembic.ini               # Alembic settings
+├── main.py                   # Application entry point
+├── requirements.txt          # Python dependencies
 └── README.md
 ```
 
@@ -59,6 +65,19 @@ interviews (1) → (many) skill_gaps
 questions (1) → (1) response
 ```
 
+### User Model (`users` table)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key (auto-generated) |
+| `email` | String(255) | Unique, indexed |
+| `username` | String(100) | Unique, indexed |
+| `password_hash` | String(255) | bcrypt hashed (never plain text) |
+| `full_name` | String(255) | Display name |
+| `is_active` | Boolean | Default: true |
+| `created_at` | DateTime | Auto timestamp |
+| `updated_at` | DateTime | Auto update timestamp |
+
 ## ⚙️ Setup Instructions
 
 ### 1. Prerequisites
@@ -70,7 +89,7 @@ questions (1) → (1) response
 ### 2. Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-interview-simulator.git
+git clone https://github.com/SRIDEV20INFO/ai-interview-simulator.git
 cd ai-interview-simulator/backend
 ```
 
@@ -101,17 +120,15 @@ source venv/bin/activate
 
 ```bash
 pip install -r requirements.txt
+pip install "pydantic[email]"
 ```
 
 ### 6. Set Up PostgreSQL Database
 
 **Connect to PostgreSQL:**
-```bash
-# Windows (adjust path to your PostgreSQL installation)
+```powershell
+# Windows
 D:\postgress\bin\psql -U postgres
-
-# Or if PostgreSQL is in PATH:
-psql -U postgres
 ```
 
 **Create Database:**
@@ -151,7 +168,6 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ### 8. Run Database Migrations
 
 ```bash
-# Create all database tables
 alembic upgrade head
 ```
 
@@ -163,6 +179,8 @@ python main.py
 
 Server will start at: **http://localhost:8000**
 
+---
+
 ## 📚 API Documentation
 
 Once the server is running, access interactive documentation:
@@ -170,30 +188,123 @@ Once the server is running, access interactive documentation:
 - **Swagger UI**: http://localhost:8000/api/docs
 - **ReDoc**: http://localhost:8000/api/redoc
 
+---
+
 ## 🛣️ Available Endpoints
 
 ### Root & Health
-- `GET /` - API information and status
-- `GET /api/health` - Health check endpoint
-- `GET /api/info` - API details and version
 
-### Users (Coming Soon)
-- `POST /api/users/register` - Register new user
-- `POST /api/users/login` - User login
-- `GET /api/users/me` - Get current user profile
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/` | API information and status | ✅ Done |
+| `GET` | `/api/health` | Health check endpoint | ✅ Done |
+| `GET` | `/api/info` | API details and version | ✅ Done |
+
+### Authentication
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `POST` | `/api/auth/register` | Register new user | ✅ Done - Day 6 |
+| `POST` | `/api/auth/login` | Login & get JWT token | ⬜ Day 7 |
+| `GET` | `/api/auth/me` | Get current user profile | ⬜ Day 7 |
 
 ### Interviews (Coming Soon)
-- `POST /api/interviews/start` - Start new interview
-- `GET /api/interviews/{id}` - Get interview details
-- `GET /api/interviews/user/{user_id}` - Get user's interviews
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `POST` | `/api/interviews/start` | Start new interview | ⬜ Day 8+ |
+| `GET` | `/api/interviews/{id}` | Get interview details | ⬜ Day 8+ |
+| `GET` | `/api/interviews/user/{user_id}` | Get user's interviews | ⬜ Day 8+ |
 
 ### Questions (Coming Soon)
-- `GET /api/questions/{interview_id}` - Get interview questions
-- `POST /api/questions/{id}/answer` - Submit answer
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/api/questions/{interview_id}` | Get interview questions | ⬜ Day 8+ |
+| `POST` | `/api/questions/{id}/answer` | Submit answer | ⬜ Day 8+ |
 
 ### Skill Gaps (Coming Soon)
-- `GET /api/skill-gaps/user/{user_id}` - Get user's skill gaps
-- `GET /api/skill-gaps/interview/{interview_id}` - Get interview skill gaps
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/api/skill-gaps/user/{user_id}` | Get user's skill gaps | ⬜ Day 8+ |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Interview skill gaps | ⬜ Day 8+ |
+
+---
+
+## 🔐 Authentication - Day 6
+
+### Register - `POST /api/auth/register`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "username": "myusername",
+  "password": "MyPass123",
+  "full_name": "My Full Name"
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "id": "cd45625f-3c51-453d-8310-fd3b365ffa51",
+  "email": "user@example.com",
+  "username": "myusername",
+  "full_name": "My Full Name",
+  "is_active": true,
+  "created_at": "2026-02-20T17:44:27.616878"
+}
+```
+
+**Validation Rules:**
+
+| Field | Rules |
+|-------|-------|
+| `email` | Must be valid email format, must be unique |
+| `username` | 3-50 chars, letters/numbers/hyphens/underscores only, must be unique |
+| `password` | Min 8 chars, at least 1 uppercase letter, at least 1 number |
+| `full_name` | Min 2 characters |
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `400` | Email already registered |
+| `400` | Username already taken |
+| `422` | Validation error (password too weak, username too short, etc.) |
+
+### Security Notes
+- Passwords are hashed with **bcrypt** before storing
+- Passwords are **never stored in plain text**
+- Passwords are **never returned** in API responses
+- All UUIDs are auto-generated
+
+---
+
+## 🧩 Core Modules - Day 6
+
+### `app/core/security.py`
+
+| Function | Description |
+|----------|-------------|
+| `hash_password(password)` | Hash plain text password with bcrypt |
+| `verify_password(plain, hashed)` | Verify password against hash |
+| `create_access_token(data)` | Create signed JWT token |
+| `decode_access_token(token)` | Decode and verify JWT token |
+
+### `app/schemas/user.py`
+
+| Schema | Usage |
+|--------|-------|
+| `UserCreate` | Validate registration request body |
+| `UserResponse` | Shape the registration/login response |
+| `UserLogin` | Validate login request body |
+| `Token` | JWT token response shape |
+| `TokenData` | JWT payload data shape |
+
+---
 
 ## 🔧 Database Migrations
 
@@ -221,11 +332,44 @@ alembic downgrade -1
 alembic history
 ```
 
+---
+
 ## 🧪 Testing
 
-### Test Database Connection
+### Test Registration (PowerShell)
 
-Create `test_db.py`:
+```powershell
+# ✅ Test 1 - Successful registration
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"email": "test@example.com", "username": "testuser", "password": "Test1234", "full_name": "Test User"}'
+
+# ✅ Test 2 - Duplicate email
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"email": "test@example.com", "username": "anotheruser", "password": "Test1234", "full_name": "Another User"}'
+
+# ✅ Test 3 - Weak password
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"email": "new@example.com", "username": "newuser", "password": "weak", "full_name": "New User"}'
+
+# ✅ Test 4 - Short username
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"email": "new2@example.com", "username": "ab", "password": "Test1234", "full_name": "New User"}'
+
+# ✅ Test 5 - Health check
+Invoke-RestMethod -Uri "http://localhost:8000/api/health"
+```
+
+### Verify in Database
+
+```powershell
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username, is_active, created_at FROM users;"
+```
+
+### Test Database Connection
 
 ```python
 from app.core.database import engine
@@ -236,47 +380,81 @@ with engine.connect() as connection:
     print(f"✅ Connected to: {result.fetchone()[0]}")
 ```
 
-Run:
-```bash
-python test_db.py
-```
+---
 
 ## 🔐 Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `APP_NAME` | Application name | AI Interview Simulator |
+| `APP_VERSION` | Application version | 1.0.0 |
 | `DEBUG` | Debug mode | True |
+| `HOST` | Server host | 0.0.0.0 |
+| `PORT` | Server port | 8000 |
 | `DATABASE_URL` | PostgreSQL connection string | Required |
-| `SECRET_KEY` | JWT secret key | Required |
+| `SECRET_KEY` | JWT secret key (min 32 chars) | Required |
 | `ALGORITHM` | JWT algorithm | HS256 |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration | 1440 (24 hours) |
 | `ALLOWED_ORIGINS` | CORS allowed origins | localhost:3000,3001 |
 
+---
+
 ## 📦 Dependencies
 
-Core packages:
-- `fastapi==0.104.1` - Web framework
-- `uvicorn==0.24.0` - ASGI server
-- `sqlalchemy==2.0.35` - ORM
-- `alembic==1.12.1` - Database migrations
-- `psycopg2-binary==2.9.9` - PostgreSQL driver
-- `pydantic==2.12.5` - Data validation
-- `python-jose==3.3.0` - JWT handling
-- `passlib==1.7.4` - Password hashing
-- `bcrypt==4.0.1` - Password encryption
+```
+fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.35
+alembic==1.12.1
+psycopg2-binary==2.9.11
+pydantic==2.12.5
+pydantic-settings==2.0.3
+pydantic[email]
+python-jose==3.3.0
+passlib==1.7.4
+bcrypt==4.0.1
+python-dotenv==1.0.0
+python-multipart==0.0.6
+cryptography==46.0.5
+```
 
-See `requirements.txt` for complete list.
+Install all:
+```powershell
+pip install -r requirements.txt
+pip install "pydantic[email]"
+```
+
+---
 
 ## 🐛 Troubleshooting
 
+### `ModuleNotFoundError: No module named 'email_validator'`
+```powershell
+pip install "pydantic[email]"
+```
+
 ### psql command not found
-Add PostgreSQL bin folder to PATH: `D:\postgress\bin`
+```powershell
+# Add PostgreSQL bin folder to PATH
+$env:PATH += ";D:\postgress\bin"
+```
 
 ### Database connection failed
 - Verify PostgreSQL is running
-- Check DATABASE_URL in `.env`
+- Check `DATABASE_URL` in `.env`
 - Verify password is correct
+- Make sure `ai_interview_db` exists
+
+### Table does not exist
+- Tables are auto-created on startup via `Base.metadata.create_all()`
+- Or run: `alembic upgrade head`
+- Restart the server
+
+### Port 8000 already in use
+```powershell
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+```
 
 ### Alembic errors
 ```bash
@@ -285,12 +463,7 @@ alembic downgrade base
 alembic upgrade head
 ```
 
-### Port 8000 already in use
-```bash
-# Change port in .env or kill process
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
-```
+---
 
 ## 📝 Development Notes
 
@@ -301,22 +474,35 @@ taskkill /PID <PID> /F
 3. Create migration: `alembic revision --autogenerate -m "Add your_model"`
 4. Apply migration: `alembic upgrade head`
 
+### Adding a New Route
+
+1. Create router in `app/api/your_router.py`
+2. Import and include in `main.py`:
+```python
+from app.api.your_router import router as your_router
+app.include_router(your_router)
+```
+
 ### Code Style
 
 - Follow PEP 8
-- Use type hints
-- Add docstrings to functions
+- Use type hints everywhere
+- Add docstrings to all functions
 - Keep functions focused and small
+
+---
 
 ## 🚀 Deployment (Future)
 
-- [ ] Set DEBUG=False
-- [ ] Use strong SECRET_KEY
+- [ ] Set `DEBUG=False`
+- [ ] Use strong `SECRET_KEY` (min 32 chars)
 - [ ] Set up proper CORS origins
 - [ ] Use environment-specific configs
 - [ ] Set up logging
 - [ ] Add rate limiting
 - [ ] Configure SSL/TLS
+
+---
 
 ## 📄 License
 
@@ -325,10 +511,11 @@ This project is part of a learning portfolio.
 ## 👤 Author
 
 **SRIDEV20**
-- GitHub: [@SRIDEV20](https://github.com/SRIDEV20)
+- GitHub: [@SRIDEV20INFO](https://github.com/SRIDEV20INFO)
 
 ## 🙏 Acknowledgments
 
 - FastAPI documentation
 - SQLAlchemy tutorials
 - PostgreSQL community
+- Pydantic v2 documentation

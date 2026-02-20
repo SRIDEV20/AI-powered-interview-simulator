@@ -2,16 +2,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
+from app.api.auth import router as auth_router
+from app.core.database import engine, Base
+
+# Create all database tables
+Base.metadata.create_all(bind=engine)
+
 # Create FastAPI app instance
 app = FastAPI(
     title="AI Interview Simulator API",
     description="Backend API for AI-powered interview simulation and skill gap analysis",
     version="1.0.0",
-    docs_url="/api/docs",  # Swagger UI
+    docs_url="/api/docs",   # Swagger UI
     redoc_url="/api/redoc"  # ReDoc
 )
 
-# CORS Configuration
+# ─── CORS Configuration ──────────────────────────────────────────
 # Allow frontend to communicate with backend
 origins = [
     "http://localhost:3000",  # Next.js default port
@@ -21,13 +27,17 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # List of allowed origins
+    allow_origins=origins,    # List of allowed origins
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],      # Allow all HTTP methods
+    allow_headers=["*"],      # Allow all headers
 )
 
-# Root endpoint - Health check
+# ─── Include Routers ─────────────────────────────────────────────
+app.include_router(auth_router)
+
+# ─── Root Endpoints ──────────────────────────────────────────────
+
 @app.get("/")
 async def root():
     """
@@ -41,7 +51,7 @@ async def root():
         "version": "1.0.0"
     }
 
-# API Health endpoint
+
 @app.get("/api/health")
 async def health_check():
     """
@@ -53,7 +63,7 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
-# API Info endpoint
+
 @app.get("/api/info")
 async def api_info():
     """
@@ -67,11 +77,13 @@ async def api_info():
         "endpoints": {
             "docs": "/api/docs",
             "redoc": "/api/redoc",
-            "health": "/api/health"
+            "health": "/api/health",
+            "register": "/api/auth/register"
         }
     }
 
-# Run this when file is executed directly
+
+# ─── Run Server ──────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
