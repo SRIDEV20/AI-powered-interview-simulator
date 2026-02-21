@@ -20,7 +20,8 @@ backend/
 │   ├── api/                  # API routes/endpoints
 │   │   ├── __init__.py
 │   │   ├── auth.py           # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
-│   │   └── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
+│   │   ├── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
+│   │   └── user.py           # ✅ Day 8 - Profile & Stats endpoints
 │   ├── core/                 # Configuration & database
 │   │   ├── config.py         # Settings management
 │   │   ├── database.py       # Database connection
@@ -31,9 +32,9 @@ backend/
 │   │   ├── question.py
 │   │   ├── response.py
 │   │   └── skill_gap.py
-│   ├── schemas/              # ✅ Day 6 - Pydantic schemas
+│   ├── schemas/              # Pydantic schemas
 │   │   ├── __init__.py
-│   │   └── user.py           # UserCreate, UserLogin, UserResponse, Token, TokenData
+│   │   └── user.py           # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
 │   └── services/             # Business logic (coming soon)
 ├── alembic/                  # Database migrations
 │   ├── versions/             # Migration files
@@ -210,27 +211,35 @@ Once the server is running, access interactive documentation:
 | `GET` | `/api/auth/me` | Get current user profile | ✅ Done - Day 7 |
 | `POST` | `/api/auth/logout` | Logout user | ✅ Done - Day 7 |
 
+### User
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/api/user/profile` | Get current user profile | ✅ Done - Day 8 |
+| `PUT` | `/api/user/profile` | Update current user profile | ✅ Done - Day 8 |
+| `GET` | `/api/user/stats` | Get dashboard statistics | ✅ Done - Day 8 |
+
 ### Interviews (Coming Soon)
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `POST` | `/api/interviews/start` | Start new interview | ⬜ Day 8+ |
-| `GET` | `/api/interviews/{id}` | Get interview details | ⬜ Day 8+ |
-| `GET` | `/api/interviews/user/{user_id}` | Get user's interviews | ⬜ Day 8+ |
+| `POST` | `/api/interviews/start` | Start new interview | ⬜ Day 11+ |
+| `GET` | `/api/interviews/{id}` | Get interview details | ⬜ Day 11+ |
+| `GET` | `/api/interviews/user/{user_id}` | Get user's interviews | ⬜ Day 11+ |
 
 ### Questions (Coming Soon)
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `GET` | `/api/questions/{interview_id}` | Get interview questions | ⬜ Day 8+ |
-| `POST` | `/api/questions/{id}/answer` | Submit answer | ⬜ Day 8+ |
+| `GET` | `/api/questions/{interview_id}` | Get interview questions | ⬜ Day 11+ |
+| `POST` | `/api/questions/{id}/answer` | Submit answer | ⬜ Day 12+ |
 
 ### Skill Gaps (Coming Soon)
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `GET` | `/api/skill-gaps/user/{user_id}` | Get user's skill gaps | ⬜ Day 8+ |
-| `GET` | `/api/skill-gaps/interview/{interview_id}` | Interview skill gaps | ⬜ Day 8+ |
+| `GET` | `/api/skill-gaps/user/{user_id}` | Get user's skill gaps | ⬜ Day 14+ |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Interview skill gaps | ⬜ Day 14+ |
 
 ---
 
@@ -343,6 +352,90 @@ Authorization: Bearer <your_token>
 
 ---
 
+## 👤 User Profile - Day 8
+
+### Get Profile - `GET /api/user/profile` ✅ Day 8
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "id": "cd45625f-3c51-453d-8310-fd3b365ffa51",
+  "email": "test@example.com",
+  "username": "testuser",
+  "full_name": "Test User",
+  "is_active": true,
+  "created_at": "2026-02-20T17:44:27.616878"
+}
+```
+
+---
+
+### Update Profile - `PUT /api/user/profile` ✅ Day 8
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Request Body (all fields optional):**
+```json
+{
+  "full_name": "New Full Name",
+  "username": "newusername"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "id": "cd45625f-3c51-453d-8310-fd3b365ffa51",
+  "email": "test@example.com",
+  "username": "newusername",
+  "full_name": "New Full Name",
+  "is_active": true,
+  "created_at": "2026-02-20T17:44:27.616878"
+}
+```
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `400` | Username already taken |
+| `401` | Not authenticated |
+| `422` | Validation error |
+
+---
+
+### Get Stats - `GET /api/user/stats` ✅ Day 8
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "total_interviews": 0,
+  "completed_interviews": 0,
+  "average_score": 0.0,
+  "best_score": 0.0,
+  "total_questions_answered": 0,
+  "member_since": "2026-02-20T17:44:27.616878",
+  "account_status": "active"
+}
+```
+
+**Note:** Stats will populate automatically as interviews are created in Day 11+
+
+---
+
 ### Security Notes
 - Passwords are hashed with **bcrypt** before storing
 - Passwords are **never stored in plain text**
@@ -371,15 +464,25 @@ Authorization: Bearer <your_token>
 | `get_current_user()` | Extracts & validates JWT token, returns user |
 | `get_current_active_user()` | Extends above with active status check |
 
-### `app/schemas/user.py` ✅ Day 6
+### `app/schemas/user.py` ✅ Day 6 + Day 8
 
-| Schema | Usage |
-|--------|-------|
-| `UserCreate` | Validate registration request body |
-| `UserLogin` | Validate login request body |
-| `UserResponse` | Shape the registration/login response |
-| `Token` | JWT token response shape (includes user) |
-| `TokenData` | JWT payload data shape |
+| Schema | Day | Usage |
+|--------|-----|-------|
+| `UserCreate` | Day 6 | Validate registration request body |
+| `UserLogin` | Day 6 | Validate login request body |
+| `UserResponse` | Day 6 | Shape the registration/login response |
+| `Token` | Day 6 | JWT token response shape (includes user) |
+| `TokenData` | Day 6 | JWT payload data shape |
+| `UserProfileUpdate` | Day 8 | Validate profile update request body |
+| `UserStatsResponse` | Day 8 | Shape the dashboard stats response |
+
+### `app/api/user.py` ✅ Day 8
+
+| Function | Description |
+|----------|-------------|
+| `get_profile()` | Returns current user profile |
+| `update_profile()` | Updates full_name and/or username |
+| `get_stats()` | Returns dashboard statistics |
 
 ---
 
@@ -413,7 +516,17 @@ alembic history
 
 ## 🧪 Testing
 
-### Test Registration (PowerShell)
+### Option 1 - Swagger UI (Recommended) ✅
+
+Open browser and go to: **http://localhost:8000/api/docs**
+- Click any endpoint → Click **"Try it out"** → Fill in data → Click **"Execute"**
+- No commands needed!
+
+---
+
+### Option 2 - PowerShell
+
+#### Test Registration
 
 ```powershell
 # ✅ Test 1 - Successful registration
@@ -440,58 +553,65 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
 Invoke-RestMethod -Uri "http://localhost:8000/api/health"
 ```
 
-### Test Login & Protected Routes (PowerShell)
+#### Test Login & Protected Routes
 
 ```powershell
-# ✅ Test 1 - Login with correct credentials (saves token automatically)
+# ✅ Login and save token automatically
 $response = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/auth/login" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "password": "Test1234"}'
 $token = $response.access_token
 
-# ✅ Test 2 - Wrong password
-Invoke-RestMethod -Method POST `
-  -Uri "http://localhost:8000/api/auth/login" `
-  -ContentType "application/json" `
-  -Body '{"email": "test@example.com", "password": "WrongPass"}'
-
-# ✅ Test 3 - Wrong email
-Invoke-RestMethod -Method POST `
-  -Uri "http://localhost:8000/api/auth/login" `
-  -ContentType "application/json" `
-  -Body '{"email": "wrong@example.com", "password": "Test1234"}'
-
-# ✅ Test 4 - Get current user (protected route with valid token)
+# ✅ Get current user
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/auth/me" `
   -Headers @{Authorization = "Bearer $token"}
+```
 
-# ✅ Test 5 - Access protected route without token
-Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/auth/me"
+#### Test User Profile & Stats
 
-# ✅ Test 6 - Access protected route with fake token
+```powershell
+# ✅ Login and save token
+$response = Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email": "test@example.com", "password": "Test1234"}'
+$token = $response.access_token
+
+# ✅ Test 1 - Get profile
 Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/auth/me" `
-  -Headers @{Authorization = "Bearer faketoken123"}
+  -Uri "http://localhost:8000/api/user/profile" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# ✅ Test 2 - Update full name
+Invoke-RestMethod -Method PUT `
+  -Uri "http://localhost:8000/api/user/profile" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"full_name": "Test User Updated"}'
+
+# ✅ Test 3 - Update username
+Invoke-RestMethod -Method PUT `
+  -Uri "http://localhost:8000/api/user/profile" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"username": "testuserupdated"}'
+
+# ✅ Test 4 - Get dashboard stats
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/user/stats" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# ✅ Test 5 - Access without token (should fail)
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/user/profile"
 ```
 
 ### Verify in Database
 
 ```powershell
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username, is_active, created_at FROM users;"
-```
-
-### Test Database Connection
-
-```python
-from app.core.database import engine
-from sqlalchemy import text
-
-with engine.connect() as connection:
-    result = connection.execute(text("SELECT version();"))
-    print(f"✅ Connected to: {result.fetchone()[0]}")
 ```
 
 ---
@@ -549,7 +669,6 @@ pip install "pydantic[email]"
 
 ### psql command not found
 ```powershell
-# Add PostgreSQL bin folder to PATH
 $env:PATH += ";D:\postgress\bin"
 ```
 
@@ -574,6 +693,11 @@ taskkill /PID <PID> /F
 - Make sure `SECRET_KEY` in `.env` is set and at least 32 characters
 - Make sure token is passed as `Bearer <token>` in the Authorization header
 - Tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES` — login again to get a new one
+
+### Pylance Import Warnings in VS Code
+- These are **not real errors** — just VS Code can't resolve paths
+- Code still runs fine as long as files are in `backend/` folder
+- To fix: set Python interpreter to your venv in VS Code
 
 ### Alembic errors
 ```bash

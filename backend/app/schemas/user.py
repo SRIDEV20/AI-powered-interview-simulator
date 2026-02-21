@@ -66,7 +66,7 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
-# ─── Token Schemas ────────────────────────────────────────────
+# ─── Token Schemas ───────────────────────────────────────────────
 
 class Token(BaseModel):
     """Schema for JWT token response"""
@@ -79,3 +79,49 @@ class TokenData(BaseModel):
     """Schema for token payload data"""
     user_id: Optional[str] = None
     email: Optional[str] = None
+
+
+# ─── Profile Schemas ─────────────────────────────────────────────  ✅ Day 8 NEW
+
+class UserProfileUpdate(BaseModel):
+    """Schema for updating user profile (all fields optional)"""
+    full_name: Optional[str] = None
+    username: Optional[str] = None
+
+    @field_validator("username")
+    @classmethod
+    def username_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if len(v) > 50:
+            raise ValueError("Username must be less than 50 characters")
+        if not v.replace("_", "").replace("-", "").isalnum():
+            raise ValueError("Username can only contain letters, numbers, hyphens and underscores")
+        return v
+
+    @field_validator("full_name")
+    @classmethod
+    def full_name_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Full name must be at least 2 characters")
+        return v
+
+
+class UserStatsResponse(BaseModel):
+    """Schema for dashboard stats response"""
+    total_interviews: int
+    completed_interviews: int
+    average_score: float
+    best_score: float
+    total_questions_answered: int
+    member_since: datetime
+    account_status: str
+
+    class Config:
+        from_attributes = True

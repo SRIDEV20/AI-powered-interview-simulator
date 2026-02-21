@@ -27,7 +27,8 @@ ai-interview-simulator/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── auth.py             # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
-│   │   │   └── deps.py             # ✅ Day 7 - Auth middleware (JWT protection)
+│   │   │   ├── deps.py             # ✅ Day 7 - Auth middleware (JWT protection)
+│   │   │   └── user.py             # ✅ Day 8 - Profile & Stats endpoints
 │   │   ├── core/
 │   │   │   ├── config.py           # Settings
 │   │   │   ├── database.py         # DB connection
@@ -39,7 +40,7 @@ ai-interview-simulator/
 │   │   │   ├── response.py
 │   │   │   └── skill_gap.py
 │   │   └── schemas/
-│   │       └── user.py             # Pydantic schemas
+│   │       └── user.py             # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
 │   ├── main.py                     # FastAPI entry point
 │   ├── requirements.txt
 │   └── README.md
@@ -64,23 +65,6 @@ ai-interview-simulator/
 
 ---
 
-## ✅ Progress
-
-### Week 1 - Foundation
-
-| Day | Task | Status |
-|-----|------|--------|
-| Day 1 | Project setup & GitHub | ✅ Done |
-| Day 2 | Database schema & API design | ✅ Done |
-| Day 3 | FastAPI initialization | ✅ Done |
-| Day 4 | PostgreSQL database + ORM models | ✅ Done |
-| Day 5 | Next.js frontend + landing page | ✅ Done |
-| Day 6 | User registration API + bcrypt + Pydantic validation | ✅ Done |
-| Day 7 | Login API + JWT tokens + Protected routes | ✅ Done |
-| Day 8 | Frontend auth integration | ⬜ Upcoming |
-
----
-
 ## 🔌 API Endpoints
 
 ### Currently Available
@@ -94,15 +78,19 @@ ai-interview-simulator/
 | `POST` | `/api/auth/login` | Login & get JWT token | Day 7 |
 | `GET` | `/api/auth/me` | Get current user (protected) | Day 7 |
 | `POST` | `/api/auth/logout` | Logout user | Day 7 |
+| `GET` | `/api/user/profile` | Get user profile (protected) | Day 8 |
+| `PUT` | `/api/user/profile` | Update user profile (protected) | Day 8 |
+| `GET` | `/api/user/stats` | Get dashboard stats (protected) | Day 8 |
 
 ### Coming Soon
 
 | Method | Endpoint | Description | Day |
 |--------|----------|-------------|-----|
-| `POST` | `/api/interviews/` | Start interview | Day 8+ |
-| `GET` | `/api/interviews/` | List user interviews | Day 8+ |
-| `GET` | `/api/interviews/{id}` | Get interview details | Day 8+ |
-| `GET` | `/api/skill-gaps/` | Get user skill gaps | Day 8+ |
+| `POST` | `/api/interviews/` | Start interview | Day 11+ |
+| `GET` | `/api/interviews/` | List user interviews | Day 11+ |
+| `GET` | `/api/interviews/{id}` | Get interview details | Day 11+ |
+| `POST` | `/api/interviews/{id}/answer` | Submit answer | Day 12+ |
+| `GET` | `/api/skill-gaps/` | Get user skill gaps | Day 14+ |
 
 ---
 
@@ -156,6 +144,16 @@ $token = $response.access_token
 # Get current user (protected route)
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/auth/me" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Get user profile
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/user/profile" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Get dashboard stats
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/user/stats" `
   -Headers @{Authorization = "Bearer $token"}
 
 # Health check

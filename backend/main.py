@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from app.api.auth import router as auth_router
+from app.api.user import router as user_router          # ✅ Day 8 NEW
 from app.core.database import engine, Base
 
 # Create all database tables
@@ -35,6 +36,7 @@ app.add_middleware(
 
 # ─── Include Routers ─────────────────────────────────────────────
 app.include_router(auth_router)
+app.include_router(user_router)                         # ✅ Day 8 NEW
 
 # ─── Root Endpoints ──────────────────────────────────────────────
 
@@ -79,9 +81,11 @@ async def api_info():
             "redoc":    "/api/redoc",
             "health":   "/api/health",
             "register": "/api/auth/register",
-            "login":    "/api/auth/login",    # ✅ Day 7 - NEW
-            "me":       "/api/auth/me",       # ✅ Day 7 - NEW
-            "logout":   "/api/auth/logout"    # ✅ Day 7 - NEW
+            "login":    "/api/auth/login",
+            "me":       "/api/auth/me",
+            "logout":   "/api/auth/logout",
+            "profile":  "/api/user/profile",            # ✅ Day 8 NEW
+            "stats":    "/api/user/stats"               # ✅ Day 8 NEW
         }
     }
 
