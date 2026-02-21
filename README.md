@@ -26,9 +26,9 @@ ai-interview-simulator/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── auth.py             # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
-│   │   │   ├── deps.py             # ✅ Day 7 - Auth middleware (JWT protection)
-│   │   │   └── user.py             # ✅ Day 8 - Profile & Stats endpoints
+│   │   │   ├── auth.py             
+│   │   │   ├── deps.py             
+│   │   │   └── user.py             
 │   │   ├── core/
 │   │   │   ├── config.py           # Settings
 │   │   │   ├── database.py         # DB connection
@@ -40,7 +40,7 @@ ai-interview-simulator/
 │   │   │   ├── response.py
 │   │   │   └── skill_gap.py
 │   │   └── schemas/
-│   │       └── user.py             # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
+│   │       └── user.py             
 │   ├── main.py                     # FastAPI entry point
 │   ├── requirements.txt
 │   └── README.md
