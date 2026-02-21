@@ -75,10 +75,13 @@ async def api_info():
         "version": "1.0.0",
         "description": "Backend API for AI-powered interview simulation and skill gap analysis",
         "endpoints": {
-            "docs": "/api/docs",
-            "redoc": "/api/redoc",
-            "health": "/api/health",
-            "register": "/api/auth/register"
+            "docs":     "/api/docs",
+            "redoc":    "/api/redoc",
+            "health":   "/api/health",
+            "register": "/api/auth/register",
+            "login":    "/api/auth/login",    # ✅ Day 7 - NEW
+            "me":       "/api/auth/me",       # ✅ Day 7 - NEW
+            "logout":   "/api/auth/logout"    # ✅ Day 7 - NEW
         }
     }
 

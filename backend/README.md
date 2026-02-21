@@ -19,7 +19,8 @@ backend/
 ├── app/
 │   ├── api/                  # API routes/endpoints
 │   │   ├── __init__.py
-│   │   └── auth.py           # ✅ Day 6 - Auth routes (register)
+│   │   ├── auth.py           # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
+│   │   └── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
 │   ├── core/                 # Configuration & database
 │   │   ├── config.py         # Settings management
 │   │   ├── database.py       # Database connection
@@ -32,7 +33,7 @@ backend/
 │   │   └── skill_gap.py
 │   ├── schemas/              # ✅ Day 6 - Pydantic schemas
 │   │   ├── __init__.py
-│   │   └── user.py           # UserCreate, UserResponse, Token schemas
+│   │   └── user.py           # UserCreate, UserLogin, UserResponse, Token, TokenData
 │   └── services/             # Business logic (coming soon)
 ├── alembic/                  # Database migrations
 │   ├── versions/             # Migration files
@@ -205,8 +206,9 @@ Once the server is running, access interactive documentation:
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
 | `POST` | `/api/auth/register` | Register new user | ✅ Done - Day 6 |
-| `POST` | `/api/auth/login` | Login & get JWT token | ⬜ Day 7 |
-| `GET` | `/api/auth/me` | Get current user profile | ⬜ Day 7 |
+| `POST` | `/api/auth/login` | Login & get JWT token | ✅ Done - Day 7 |
+| `GET` | `/api/auth/me` | Get current user profile | ✅ Done - Day 7 |
+| `POST` | `/api/auth/logout` | Logout user | ✅ Done - Day 7 |
 
 ### Interviews (Coming Soon)
 
@@ -232,7 +234,7 @@ Once the server is running, access interactive documentation:
 
 ---
 
-## 🔐 Authentication - Day 6
+## 🔐 Authentication - Day 6 & Day 7
 
 ### Register - `POST /api/auth/register`
 
@@ -275,17 +277,85 @@ Once the server is running, access interactive documentation:
 | `400` | Username already taken |
 | `422` | Validation error (password too weak, username too short, etc.) |
 
+---
+
+### Login - `POST /api/auth/login` ✅ Day 7
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "MyPass123"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "user": {
+    "id": "cd45625f-3c51-453d-8310-fd3b365ffa51",
+    "email": "user@example.com",
+    "username": "myusername",
+    "full_name": "My Full Name",
+    "is_active": true,
+    "created_at": "2026-02-20T17:44:27.616878"
+  }
+}
+```
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `401` | Incorrect email or password |
+| `403` | Account is inactive |
+
+---
+
+### Get Current User - `GET /api/auth/me` ✅ Day 7
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "id": "cd45625f-3c51-453d-8310-fd3b365ffa51",
+  "email": "test@example.com",
+  "username": "testuser",
+  "full_name": "Test User",
+  "is_active": true,
+  "created_at": "2026-02-20T17:44:27.616878"
+}
+```
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `401` | Not authenticated (no token) |
+| `401` | Could not validate credentials (invalid/expired token) |
+| `403` | Account is inactive |
+
+---
+
 ### Security Notes
 - Passwords are hashed with **bcrypt** before storing
 - Passwords are **never stored in plain text**
 - Passwords are **never returned** in API responses
 - All UUIDs are auto-generated
+- JWT tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES` (default 1440 = 24 hours)
+- Wrong credentials always return the same error (never reveals which field is wrong)
 
 ---
 
-## 🧩 Core Modules - Day 6
+## 🧩 Core Modules
 
-### `app/core/security.py`
+### `app/core/security.py` ✅ Day 6
 
 | Function | Description |
 |----------|-------------|
@@ -294,14 +364,21 @@ Once the server is running, access interactive documentation:
 | `create_access_token(data)` | Create signed JWT token |
 | `decode_access_token(token)` | Decode and verify JWT token |
 
-### `app/schemas/user.py`
+### `app/api/deps.py` ✅ Day 7
+
+| Function | Description |
+|----------|-------------|
+| `get_current_user()` | Extracts & validates JWT token, returns user |
+| `get_current_active_user()` | Extends above with active status check |
+
+### `app/schemas/user.py` ✅ Day 6
 
 | Schema | Usage |
 |--------|-------|
 | `UserCreate` | Validate registration request body |
-| `UserResponse` | Shape the registration/login response |
 | `UserLogin` | Validate login request body |
-| `Token` | JWT token response shape |
+| `UserResponse` | Shape the registration/login response |
+| `Token` | JWT token response shape (includes user) |
 | `TokenData` | JWT payload data shape |
 
 ---
@@ -361,6 +438,43 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
 
 # ✅ Test 5 - Health check
 Invoke-RestMethod -Uri "http://localhost:8000/api/health"
+```
+
+### Test Login & Protected Routes (PowerShell)
+
+```powershell
+# ✅ Test 1 - Login with correct credentials (saves token automatically)
+$response = Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email": "test@example.com", "password": "Test1234"}'
+$token = $response.access_token
+
+# ✅ Test 2 - Wrong password
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email": "test@example.com", "password": "WrongPass"}'
+
+# ✅ Test 3 - Wrong email
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email": "wrong@example.com", "password": "Test1234"}'
+
+# ✅ Test 4 - Get current user (protected route with valid token)
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/auth/me" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# ✅ Test 5 - Access protected route without token
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/auth/me"
+
+# ✅ Test 6 - Access protected route with fake token
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/auth/me" `
+  -Headers @{Authorization = "Bearer faketoken123"}
 ```
 
 ### Verify in Database
@@ -456,6 +570,11 @@ netstat -ano | findstr :8000
 taskkill /PID <PID> /F
 ```
 
+### JWT Token Issues
+- Make sure `SECRET_KEY` in `.env` is set and at least 32 characters
+- Make sure token is passed as `Bearer <token>` in the Authorization header
+- Tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES` — login again to get a new one
+
 ### Alembic errors
 ```bash
 # Reset migrations (careful - destroys data!)
@@ -481,6 +600,18 @@ alembic upgrade head
 ```python
 from app.api.your_router import router as your_router
 app.include_router(your_router)
+```
+
+### Protecting a Route
+
+Use `get_current_user` dependency from `app/api/deps.py`:
+```python
+from app.api.deps import get_current_user
+from app.models.user import User
+
+@router.get("/protected")
+def protected_route(current_user: User = Depends(get_current_user)):
+    return {"message": f"Hello {current_user.username}"}
 ```
 
 ### Code Style

@@ -1,4 +1,4 @@
-    # 🤖 AI Interview Simulator
+# 🤖 AI Interview Simulator
 
 A full-stack AI-powered interview simulator that helps you practice interviews, get instant feedback, and track skill gaps over time.
 
@@ -26,13 +26,18 @@ ai-interview-simulator/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── auth.py             # Auth routes
+│   │   │   ├── auth.py             # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
+│   │   │   └── deps.py             # ✅ Day 7 - Auth middleware (JWT protection)
 │   │   ├── core/
 │   │   │   ├── config.py           # Settings
 │   │   │   ├── database.py         # DB connection
 │   │   │   └── security.py         # JWT & bcrypt
 │   │   ├── models/
-│   │   │   └── user.py             # User model
+│   │   │   ├── user.py             # User model
+│   │   │   ├── interview.py
+│   │   │   ├── question.py
+│   │   │   ├── response.py
+│   │   │   └── skill_gap.py
 │   │   └── schemas/
 │   │       └── user.py             # Pydantic schemas
 │   ├── main.py                     # FastAPI entry point
@@ -59,24 +64,45 @@ ai-interview-simulator/
 
 ---
 
+## ✅ Progress
+
+### Week 1 - Foundation
+
+| Day | Task | Status |
+|-----|------|--------|
+| Day 1 | Project setup & GitHub | ✅ Done |
+| Day 2 | Database schema & API design | ✅ Done |
+| Day 3 | FastAPI initialization | ✅ Done |
+| Day 4 | PostgreSQL database + ORM models | ✅ Done |
+| Day 5 | Next.js frontend + landing page | ✅ Done |
+| Day 6 | User registration API + bcrypt + Pydantic validation | ✅ Done |
+| Day 7 | Login API + JWT tokens + Protected routes | ✅ Done |
+| Day 8 | Frontend auth integration | ⬜ Upcoming |
+
+---
+
 ## 🔌 API Endpoints
 
 ### Currently Available
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | API root info |
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/info` | API information |
-| `POST` | `/api/auth/register` | Register new user |
+| Method | Endpoint | Description | Day |
+|--------|----------|-------------|-----|
+| `GET` | `/` | API root info | Day 3 |
+| `GET` | `/api/health` | Health check | Day 3 |
+| `GET` | `/api/info` | API information | Day 3 |
+| `POST` | `/api/auth/register` | Register new user | Day 6 |
+| `POST` | `/api/auth/login` | Login & get JWT token | Day 7 |
+| `GET` | `/api/auth/me` | Get current user (protected) | Day 7 |
+| `POST` | `/api/auth/logout` | Logout user | Day 7 |
 
 ### Coming Soon
 
 | Method | Endpoint | Description | Day |
 |--------|----------|-------------|-----|
-| `POST` | `/api/auth/login` | Login & get JWT | Day 7 |
-| `GET` | `/api/auth/me` | Get current user | Day 7 |
 | `POST` | `/api/interviews/` | Start interview | Day 8+ |
+| `GET` | `/api/interviews/` | List user interviews | Day 8+ |
+| `GET` | `/api/interviews/{id}` | Get interview details | Day 8+ |
+| `GET` | `/api/skill-gaps/` | Get user skill gaps | Day 8+ |
 
 ---
 
@@ -120,6 +146,18 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "username": "testuser", "password": "Test1234", "full_name": "Test User"}'
 
+# Login and save token automatically
+$response = Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email": "test@example.com", "password": "Test1234"}'
+$token = $response.access_token
+
+# Get current user (protected route)
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/auth/me" `
+  -Headers @{Authorization = "Bearer $token"}
+
 # Health check
 Invoke-RestMethod -Uri "http://localhost:8000/api/health"
 ```
@@ -136,7 +174,7 @@ D:\postgress\bin\psql -U postgres
 CREATE DATABASE ai_interview_db;
 
 # Verify users table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT * FROM users;"
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username, is_active, created_at FROM users;"
 ```
 
 ---
