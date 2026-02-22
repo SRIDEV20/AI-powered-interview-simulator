@@ -11,6 +11,7 @@ FastAPI backend for the AI Interview Simulator project with PostgreSQL database 
 - **Password Hashing**: bcrypt 4.0.1 (passlib)
 - **Migrations**: Alembic 1.12.1
 - **Validation**: Pydantic 2.12.5
+- **AI**: OpenAI GPT-4
 
 ## 📁 Project Structure
 
@@ -23,7 +24,7 @@ backend/
 │   │   ├── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
 │   │   └── user.py           # ✅ Day 8 - Profile & Stats endpoints
 │   ├── core/                 # Configuration & database
-│   │   ├── config.py         # Settings management
+│   │   ├── config.py         # ✅ Day 9 - Added OpenAI settings
 │   │   ├── database.py       # Database connection
 │   │   └── security.py       # ✅ Day 6 - bcrypt & JWT utils
 │   ├── models/               # SQLAlchemy ORM models
@@ -35,15 +36,17 @@ backend/
 │   ├── schemas/              # Pydantic schemas
 │   │   ├── __init__.py
 │   │   └── user.py           # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
-│   └── services/             # Business logic (coming soon)
+│   └── services/             # Business logic
+│       ├── __init__.py
+│       └── openai_service.py # ✅ Day 9 - GPT-4 service wrapper
 ├── alembic/                  # Database migrations
 │   ├── versions/             # Migration files
 │   └── env.py                # Alembic configuration
 ├── venv/                     # Virtual environment (not in git)
 ├── .env                      # Environment variables (not in git)
 ├── alembic.ini               # Alembic settings
-├── main.py                   # Application entry point
-├── requirements.txt          # Python dependencies
+├── main.py                   # ✅ Day 9 - Added AI test endpoint
+├── requirements.txt          # ✅ Day 9 - Added openai>=1.50.0
 └── README.md
 ```
 
@@ -87,6 +90,7 @@ questions (1) → (1) response
 - Python 3.10+ installed
 - PostgreSQL 18 installed and running
 - Git installed
+- OpenAI API key (get from https://platform.openai.com/api-keys)
 
 ### 2. Clone Repository
 
@@ -163,9 +167,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 # CORS Settings
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+
+# OpenAI Settings ✅ Day 9
+OPENAI_API_KEY=sk-your-real-key-here
+OPENAI_MODEL=gpt-4
+OPENAI_MAX_TOKENS=1000
+OPENAI_TEMPERATURE=0.7
 ```
 
-**⚠️ Important:** Replace `YOUR_PASSWORD` with your PostgreSQL password!
+**⚠️ Important:**
+- Replace `YOUR_PASSWORD` with your PostgreSQL password!
+- Replace `sk-your-real-key-here` with your real OpenAI API key!
+- Never commit `.env` to GitHub!
 
 ### 8. Run Database Migrations
 
@@ -218,6 +231,12 @@ Once the server is running, access interactive documentation:
 | `GET` | `/api/user/profile` | Get current user profile | ✅ Done - Day 8 |
 | `PUT` | `/api/user/profile` | Update current user profile | ✅ Done - Day 8 |
 | `GET` | `/api/user/stats` | Get dashboard statistics | ✅ Done - Day 8 |
+
+### AI (Test)
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/api/test/ai` | Test OpenAI GPT-4 connection | ✅ Done - Day 9 |
 
 ### Interviews (Coming Soon)
 
@@ -432,7 +451,29 @@ Authorization: Bearer <your_token>
 }
 ```
 
-**Note:** Stats will populate automatically as interviews are created in Day 11+
+---
+
+## 🤖 OpenAI Integration - Day 9
+
+### Test AI Connection - `GET /api/test/ai` ✅ Day 9
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "connected",
+  "model": "gpt-4",
+  "response": "OpenAI connection successful!"
+}
+```
+
+**Error Response:**
+```json
+{
+  "status": "failed",
+  "model": "gpt-4",
+  "error": "Incorrect API key provided"
+}
+```
 
 ---
 
@@ -443,6 +484,7 @@ Authorization: Bearer <your_token>
 - All UUIDs are auto-generated
 - JWT tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES` (default 1440 = 24 hours)
 - Wrong credentials always return the same error (never reveals which field is wrong)
+- OpenAI API key is stored in `.env` and **never committed to GitHub**
 
 ---
 
@@ -483,6 +525,16 @@ Authorization: Bearer <your_token>
 | `get_profile()` | Returns current user profile |
 | `update_profile()` | Updates full_name and/or username |
 | `get_stats()` | Returns dashboard statistics |
+
+### `app/services/openai_service.py` ✅ Day 9
+
+| Function | Description |
+|----------|-------------|
+| `chat()` | Base GPT-4 chat call |
+| `generate_interview_questions()` | Generate questions by role & difficulty |
+| `evaluate_answer()` | Evaluate candidate answer with score & feedback |
+| `analyze_skill_gaps()` | Analyze interview performance & identify gaps |
+| `test_connection()` | Verify API key is working |
 
 ---
 
@@ -608,6 +660,13 @@ Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/user/profile"
 ```
 
+#### Test OpenAI Connection
+
+```powershell
+# ✅ Test AI connection
+Invoke-RestMethod -Uri "http://localhost:8000/api/test/ai"
+```
+
 ### Verify in Database
 
 ```powershell
@@ -630,6 +689,10 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, usern
 | `ALGORITHM` | JWT algorithm | HS256 |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration | 1440 (24 hours) |
 | `ALLOWED_ORIGINS` | CORS allowed origins | localhost:3000,3001 |
+| `OPENAI_API_KEY` | OpenAI API key | Required ✅ Day 9 |
+| `OPENAI_MODEL` | GPT model to use | gpt-4 ✅ Day 9 |
+| `OPENAI_MAX_TOKENS` | Max tokens per request | 1000 ✅ Day 9 |
+| `OPENAI_TEMPERATURE` | Response creativity (0-1) | 0.7 ✅ Day 9 |
 
 ---
 
@@ -637,19 +700,19 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, usern
 
 ```
 fastapi==0.104.1
-uvicorn==0.24.0
-sqlalchemy==2.0.35
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
 alembic==1.12.1
-psycopg2-binary==2.9.11
+psycopg2-binary==2.9.9
 pydantic==2.12.5
 pydantic-settings==2.0.3
-pydantic[email]
-python-jose==3.3.0
-passlib==1.7.4
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-dotenv==1.0.0
 python-multipart==0.0.6
-cryptography==46.0.5
+python-dateutil==2.8.2
+openai>=1.50.0
 ```
 
 Install all:
@@ -694,10 +757,29 @@ taskkill /PID <PID> /F
 - Make sure token is passed as `Bearer <token>` in the Authorization header
 - Tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES` — login again to get a new one
 
+### OpenAI 401 - Incorrect API Key
+- Go to https://platform.openai.com/api-keys
+- Create a new key and copy the full key
+- Paste in `.env` without quotes: `OPENAI_API_KEY=sk-proj-xxx`
+- Restart server after updating `.env`
+
+### OpenAI `proxies` TypeError
+```powershell
+# Upgrade openai package
+pip install --upgrade openai
+```
+
 ### Pylance Import Warnings in VS Code
 - These are **not real errors** — just VS Code can't resolve paths
-- Code still runs fine as long as files are in `backend/` folder
-- To fix: set Python interpreter to your venv in VS Code
+- Code still runs fine
+- Fix: `Ctrl+Shift+P` → Python: Select Interpreter → choose venv
+
+### Git Push Rejected
+```powershell
+# Always pull before push
+git pull origin main --rebase
+git push origin main
+```
 
 ### Alembic errors
 ```bash
@@ -774,3 +856,4 @@ This project is part of a learning portfolio.
 - SQLAlchemy tutorials
 - PostgreSQL community
 - Pydantic v2 documentation
+- OpenAI documentation
