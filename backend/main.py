@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from app.api.auth import router as auth_router
-from app.api.user import router as user_router          # ✅ Day 8 NEW
+from app.api.user import router as user_router          # ✅ Day 8
 from app.core.database import engine, Base
 
 # Create all database tables
@@ -19,7 +19,6 @@ app = FastAPI(
 )
 
 # ─── CORS Configuration ──────────────────────────────────────────
-# Allow frontend to communicate with backend
 origins = [
     "http://localhost:3000",  # Next.js default port
     "http://localhost:3001",
@@ -28,15 +27,15 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,    # List of allowed origins
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],      # Allow all HTTP methods
-    allow_headers=["*"],      # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ─── Include Routers ─────────────────────────────────────────────
 app.include_router(auth_router)
-app.include_router(user_router)                         # ✅ Day 8 NEW
+app.include_router(user_router)                         # ✅ Day 8
 
 # ─── Root Endpoints ──────────────────────────────────────────────
 
@@ -84,10 +83,25 @@ async def api_info():
             "login":    "/api/auth/login",
             "me":       "/api/auth/me",
             "logout":   "/api/auth/logout",
-            "profile":  "/api/user/profile",            # ✅ Day 8 NEW
-            "stats":    "/api/user/stats"               # ✅ Day 8 NEW
+            "profile":  "/api/user/profile",            # ✅ Day 8
+            "stats":    "/api/user/stats",              # ✅ Day 8
+            "ai_test":  "/api/test/ai"                  # ✅ Day 9 NEW - temp test route
         }
     }
+
+
+# ─── Day 9 - AI Connection Test Endpoint ─────────────────────────
+
+@app.get("/api/test/ai", tags=["Test"])
+async def test_ai():
+    """
+    Test OpenAI GPT-4 connection.
+    Verifies API key is working correctly.
+    ⚠️ Temporary endpoint - only for Day 9 testing.
+    """
+    from app.services.openai_service import openai_service
+    result = openai_service.test_connection()
+    return result
 
 
 # ─── Run Server ──────────────────────────────────────────────────
