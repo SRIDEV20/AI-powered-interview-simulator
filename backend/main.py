@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.api.auth import router as auth_router
 from app.api.user import router as user_router          # ✅ Day 8
+from app.api.interview import router as interview_router # ✅ Day 10 NEW
 from app.core.database import engine, Base
 
 # Create all database tables
@@ -36,6 +37,7 @@ app.add_middleware(
 # ─── Include Routers ─────────────────────────────────────────────
 app.include_router(auth_router)
 app.include_router(user_router)                         # ✅ Day 8
+app.include_router(interview_router)                    # ✅ Day 10 NEW
 
 # ─── Root Endpoints ──────────────────────────────────────────────
 
@@ -76,16 +78,19 @@ async def api_info():
         "version": "1.0.0",
         "description": "Backend API for AI-powered interview simulation and skill gap analysis",
         "endpoints": {
-            "docs":     "/api/docs",
-            "redoc":    "/api/redoc",
-            "health":   "/api/health",
-            "register": "/api/auth/register",
-            "login":    "/api/auth/login",
-            "me":       "/api/auth/me",
-            "logout":   "/api/auth/logout",
-            "profile":  "/api/user/profile",            # ✅ Day 8
-            "stats":    "/api/user/stats",              # ✅ Day 8
-            "ai_test":  "/api/test/ai"                  # ✅ Day 9 NEW - temp test route
+            "docs"            : "/api/docs",
+            "redoc"           : "/api/redoc",
+            "health"          : "/api/health",
+            "register"        : "/api/auth/register",
+            "login"           : "/api/auth/login",
+            "me"              : "/api/auth/me",
+            "logout"          : "/api/auth/logout",
+            "profile"         : "/api/user/profile",        # ✅ Day 8
+            "stats"           : "/api/user/stats",          # ✅ Day 8
+            "ai_test"         : "/api/test/ai",             # ✅ Day 9
+            "interview_create": "/api/interview/create",    # ✅ Day 10 NEW
+            "interview_get"   : "/api/interview/{id}",      # ✅ Day 10 NEW
+            "interview_list"  : "/api/interview/"           # ✅ Day 10 NEW
         }
     }
 
