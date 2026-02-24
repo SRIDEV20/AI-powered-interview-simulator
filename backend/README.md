@@ -22,23 +22,26 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── auth.py           # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
 │   │   ├── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
-│   │   └── user.py           # ✅ Day 8 - Profile & Stats endpoints
+│   │   ├── user.py           # ✅ Day 8 - Profile & Stats endpoints
+│   │   └── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
 │   ├── core/                 # Configuration & database
 │   │   ├── config.py         # ✅ Day 9 - Added OpenAI settings
-│   │   ├── database.py       # Database connection
+│   │   ├── database.py       # Database connection + get_db dependency
 │   │   └── security.py       # ✅ Day 6 - bcrypt & JWT utils
 │   ├── models/               # SQLAlchemy ORM models
 │   │   ├── user.py
-│   │   ├── interview.py
-│   │   ├── question.py
-│   │   ├── response.py
-│   │   └── skill_gap.py
+│   │   ├── interview.py      # ✅ Day 4 - Interview, DifficultyLevel, InterviewStatus
+│   │   ├── question.py       # ✅ Day 4 - Question, QuestionType
+│   │   ├── response.py       # ✅ Day 4 - Response (AI feedback)
+│   │   └── skill_gap.py      # ✅ Day 4 - SkillGap
 │   ├── schemas/              # Pydantic schemas
 │   │   ├── __init__.py
-│   │   └── user.py           # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
+│   │   ├── user.py           # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
+│   │   └── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
 │   └── services/             # Business logic
 │       ├── __init__.py
-│       └── openai_service.py # ✅ Day 9 - GPT-4 service wrapper
+│       ├── openai_service.py # ✅ Day 9 - GPT-4 service wrapper
+│       └── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
 ├── alembic/                  # Database migrations
 │   ├── versions/             # Migration files
 │   └── env.py                # Alembic configuration
@@ -82,6 +85,34 @@ questions (1) → (1) response
 | `is_active` | Boolean | Default: true |
 | `created_at` | DateTime | Auto timestamp |
 | `updated_at` | DateTime | Auto update timestamp |
+
+### Interview Model (`interviews` table)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key (auto-generated) |
+| `user_id` | UUID | Foreign key → users.id |
+| `job_role` | String(100) | e.g. Python Developer |
+| `difficulty_level` | Enum | beginner / intermediate / advanced |
+| `status` | Enum | in_progress / completed / abandoned |
+| `overall_score` | DECIMAL(5,2) | 0-100 (null until evaluated) |
+| `started_at` | DateTime | Auto timestamp |
+| `completed_at` | DateTime | Set when completed |
+| `duration_minutes` | Integer | Interview duration |
+
+### Question Model (`questions` table)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key (auto-generated) |
+| `interview_id` | UUID | Foreign key → interviews.id |
+| `question_text` | Text | The question content |
+| `question_type` | Enum | technical / behavioral / coding / system_design |
+| `difficulty` | String(20) | beginner / intermediate / advanced |
+| `skill_category` | String(100) | e.g. Python, Algorithms |
+| `expected_answer` | Text | Key points for AI comparison |
+| `order_number` | Integer | Question order in interview |
+| `created_at` | DateTime | Auto timestamp |
 
 ## ⚙️ Setup Instructions
 
@@ -170,8 +201,8 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 
 # OpenAI Settings ✅ Day 9
 OPENAI_API_KEY=sk-your-real-key-here
-OPENAI_MODEL=gpt-4
-OPENAI_MAX_TOKENS=1000
+OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_MAX_TOKENS=2000
 OPENAI_TEMPERATURE=0.7
 ```
 
@@ -179,6 +210,7 @@ OPENAI_TEMPERATURE=0.7
 - Replace `YOUR_PASSWORD` with your PostgreSQL password!
 - Replace `sk-your-real-key-here` with your real OpenAI API key!
 - Never commit `.env` to GitHub!
+- Use `gpt-3.5-turbo` during development to save costs!
 
 ### 8. Run Database Migrations
 
@@ -238,27 +270,28 @@ Once the server is running, access interactive documentation:
 |--------|----------|-------------|--------|
 | `GET` | `/api/test/ai` | Test OpenAI GPT-4 connection | ✅ Done - Day 9 |
 
-### Interviews (Coming Soon)
+### Interviews
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `POST` | `/api/interviews/start` | Start new interview | ⬜ Day 11+ |
-| `GET` | `/api/interviews/{id}` | Get interview details | ⬜ Day 11+ |
-| `GET` | `/api/interviews/user/{user_id}` | Get user's interviews | ⬜ Day 11+ |
+| `POST` | `/api/interview/create` | Create interview + generate questions | ✅ Done - Day 10 |
+| `GET` | `/api/interview/` | List all my interviews | ✅ Done - Day 11 |
+| `GET` | `/api/interview/{interview_id}` | Get interview detail + questions | ✅ Done - Day 11 |
+| `PATCH` | `/api/interview/{interview_id}/complete` | Mark interview as completed | ✅ Done - Day 11 |
 
-### Questions (Coming Soon)
+### Answers & Evaluation (Coming Soon)
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `GET` | `/api/questions/{interview_id}` | Get interview questions | ⬜ Day 11+ |
-| `POST` | `/api/questions/{id}/answer` | Submit answer | ⬜ Day 12+ |
+| `POST` | `/api/interview/{id}/answer` | Submit answer for evaluation | ⬜ Day 12 |
+| `GET` | `/api/interview/{id}/results` | Get full interview results | ⬜ Day 13 |
 
 ### Skill Gaps (Coming Soon)
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `GET` | `/api/skill-gaps/user/{user_id}` | Get user's skill gaps | ⬜ Day 14+ |
-| `GET` | `/api/skill-gaps/interview/{interview_id}` | Interview skill gaps | ⬜ Day 14+ |
+| `GET` | `/api/skill-gaps/user/{user_id}` | Get user's skill gaps | ⬜ Day 14 |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Interview skill gaps | ⬜ Day 14 |
 
 ---
 
@@ -477,6 +510,159 @@ Authorization: Bearer <your_token>
 
 ---
 
+## 🎯 Interview Management - Day 10 & Day 11
+
+### Create Interview - `POST /api/interview/create` ✅ Day 10
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Request Body:**
+```json
+{
+  "job_role": "Python Developer",
+  "difficulty": "intermediate",
+  "num_questions": 3,
+  "question_type": "mixed"
+}
+```
+
+**Field Options:**
+
+| Field | Options | Default |
+|-------|---------|---------|
+| `job_role` | Any string (2-100 chars) | Required |
+| `difficulty` | beginner / intermediate / advanced | intermediate |
+| `num_questions` | 1-10 | 5 |
+| `question_type` | technical / behavioral / mixed | mixed |
+
+**Success Response (201 Created):**
+```json
+{
+  "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
+  "job_role": "Python Developer",
+  "difficulty": "intermediate",
+  "question_type": "mixed",
+  "total_questions": 3,
+  "questions": [
+    {
+      "id": "d9dee515-78a5-4539-ab7a-1d35ee52a906",
+      "question": "Explain the difference between list comprehension and generator expression in Python.",
+      "type": "technical",
+      "difficulty": "intermediate",
+      "expected_points": [
+        "List comprehension returns a list",
+        "Generator expressions are memory-efficient",
+        "List comprehensions use [] while generators use ()"
+      ],
+      "order_number": 1
+    }
+  ],
+  "status": "in_progress",
+  "created_at": "2026-02-24T13:33:15.536135"
+}
+```
+
+---
+
+### List My Interviews - `GET /api/interview/` ✅ Day 11
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "total": 1,
+  "interviews": [
+    {
+      "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
+      "job_role": "Python Developer",
+      "difficulty": "intermediate",
+      "total_questions": 3,
+      "status": "in_progress",
+      "overall_score": null,
+      "created_at": "2026-02-24T13:33:15.536135"
+    }
+  ]
+}
+```
+
+---
+
+### Get Interview Detail - `GET /api/interview/{interview_id}` ✅ Day 11
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
+  "job_role": "Python Developer",
+  "difficulty": "intermediate",
+  "question_type": "mixed",
+  "total_questions": 3,
+  "questions": [
+    {
+      "id": "d9dee515-78a5-4539-ab7a-1d35ee52a906",
+      "question": "Explain the difference between list comprehension and generator expression in Python.",
+      "type": "technical",
+      "difficulty": "intermediate",
+      "expected_points": [
+        "List comprehension returns a list",
+        "Generator expressions are memory-efficient",
+        "List comprehensions use [] while generators use ()"
+      ],
+      "order_number": 1
+    }
+  ],
+  "status": "in_progress",
+  "created_at": "2026-02-24T13:33:15.536135"
+}
+```
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `401` | Not authenticated |
+
+---
+
+### Complete Interview - `PATCH /api/interview/{interview_id}/complete` ✅ Day 11
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
+  "status": "completed",
+  "message": "Interview completed successfully",
+  "completed_at": "2026-02-24T13:42:47.510167"
+}
+```
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `401` | Not authenticated |
+
+---
+
 ### Security Notes
 - Passwords are hashed with **bcrypt** before storing
 - Passwords are **never stored in plain text**
@@ -518,6 +704,18 @@ Authorization: Bearer <your_token>
 | `UserProfileUpdate` | Day 8 | Validate profile update request body |
 | `UserStatsResponse` | Day 8 | Shape the dashboard stats response |
 
+### `app/schemas/interview.py` ✅ Day 10 + Day 11
+
+| Schema | Day | Usage |
+|--------|-----|-------|
+| `InterviewCreateRequest` | Day 10 | Validate interview creation request |
+| `InterviewCreateResponse` | Day 10 | Shape create interview response |
+| `QuestionResponse` | Day 10 | Shape individual question data |
+| `InterviewDetailResponse` | Day 11 | Shape full interview detail response |
+| `InterviewSummary` | Day 11 | Shape interview list item |
+| `InterviewListResponse` | Day 11 | Shape list all interviews response |
+| `InterviewCompleteResponse` | Day 11 | Shape complete interview response |
+
 ### `app/api/user.py` ✅ Day 8
 
 | Function | Description |
@@ -525,6 +723,15 @@ Authorization: Bearer <your_token>
 | `get_profile()` | Returns current user profile |
 | `update_profile()` | Updates full_name and/or username |
 | `get_stats()` | Returns dashboard statistics |
+
+### `app/api/interview.py` ✅ Day 10 + Day 11
+
+| Function | Description |
+|----------|-------------|
+| `create_interview()` | Creates interview + generates GPT questions |
+| `list_interviews()` | Returns all interviews for current user |
+| `get_interview()` | Returns interview detail with all questions |
+| `complete_interview()` | Marks interview as completed |
 
 ### `app/services/openai_service.py` ✅ Day 9
 
@@ -535,6 +742,19 @@ Authorization: Bearer <your_token>
 | `evaluate_answer()` | Evaluate candidate answer with score & feedback |
 | `analyze_skill_gaps()` | Analyze interview performance & identify gaps |
 | `test_connection()` | Verify API key is working |
+
+### `app/services/interview_service.py` ✅ Day 10 + Day 11
+
+| Function | Description |
+|----------|-------------|
+| `_build_prompt()` | Build GPT prompt for question generation |
+| `_generate_questions()` | Call GPT and parse response to list of dicts |
+| `_map_difficulty()` | Map string to DifficultyLevel enum |
+| `_map_question_type()` | Map string to QuestionType enum |
+| `create_interview()` | Create interview + questions → save to PostgreSQL |
+| `get_interview()` | Fetch interview + questions from PostgreSQL |
+| `get_user_interviews()` | Fetch all interviews for a user from PostgreSQL |
+| `complete_interview()` | Update interview status to COMPLETED in PostgreSQL |
 
 ---
 
@@ -585,24 +805,6 @@ Open browser and go to: **http://localhost:8000/api/docs**
 Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "username": "testuser", "password": "Test1234", "full_name": "Test User"}'
-
-# ✅ Test 2 - Duplicate email
-Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
-  -ContentType "application/json" `
-  -Body '{"email": "test@example.com", "username": "anotheruser", "password": "Test1234", "full_name": "Another User"}'
-
-# ✅ Test 3 - Weak password
-Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
-  -ContentType "application/json" `
-  -Body '{"email": "new@example.com", "username": "newuser", "password": "weak", "full_name": "New User"}'
-
-# ✅ Test 4 - Short username
-Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
-  -ContentType "application/json" `
-  -Body '{"email": "new2@example.com", "username": "ab", "password": "Test1234", "full_name": "New User"}'
-
-# ✅ Test 5 - Health check
-Invoke-RestMethod -Uri "http://localhost:8000/api/health"
 ```
 
 #### Test Login & Protected Routes
@@ -621,56 +823,48 @@ Invoke-RestMethod -Method GET `
   -Headers @{Authorization = "Bearer $token"}
 ```
 
-#### Test User Profile & Stats
+#### Test Interview Lifecycle
 
 ```powershell
-# ✅ Login and save token
+# ✅ Login first
 $response = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/auth/login" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "password": "Test1234"}'
 $token = $response.access_token
 
-# ✅ Test 1 - Get profile
-Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/user/profile" `
-  -Headers @{Authorization = "Bearer $token"}
-
-# ✅ Test 2 - Update full name
-Invoke-RestMethod -Method PUT `
-  -Uri "http://localhost:8000/api/user/profile" `
+# ✅ Create interview
+$interview = Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/create" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"full_name": "Test User Updated"}'
+  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "mixed"}'
+$interviewId = $interview.interview_id
 
-# ✅ Test 3 - Update username
-Invoke-RestMethod -Method PUT `
-  -Uri "http://localhost:8000/api/user/profile" `
-  -ContentType "application/json" `
-  -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"username": "testuserupdated"}'
-
-# ✅ Test 4 - Get dashboard stats
+# ✅ List all interviews
 Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/user/stats" `
+  -Uri "http://localhost:8000/api/interview/" `
   -Headers @{Authorization = "Bearer $token"}
 
-# ✅ Test 5 - Access without token (should fail)
+# ✅ Get interview detail
 Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/user/profile"
+  -Uri "http://localhost:8000/api/interview/$interviewId" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# ✅ Complete interview
+Invoke-RestMethod -Method PATCH `
+  -Uri "http://localhost:8000/api/interview/$interviewId/complete" `
+  -Headers @{Authorization = "Bearer $token"}
 ```
 
-#### Test OpenAI Connection
+#### Verify in Database
 
 ```powershell
-# ✅ Test AI connection
-Invoke-RestMethod -Uri "http://localhost:8000/api/test/ai"
-```
+# ✅ Check interviews table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, status, started_at, completed_at FROM interviews;"
 
-### Verify in Database
-
-```powershell
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username, is_active, created_at FROM users;"
+# ✅ Check questions table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, order_number FROM questions;"
 ```
 
 ---
@@ -690,8 +884,8 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, usern
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration | 1440 (24 hours) |
 | `ALLOWED_ORIGINS` | CORS allowed origins | localhost:3000,3001 |
 | `OPENAI_API_KEY` | OpenAI API key | Required ✅ Day 9 |
-| `OPENAI_MODEL` | GPT model to use | gpt-4 ✅ Day 9 |
-| `OPENAI_MAX_TOKENS` | Max tokens per request | 1000 ✅ Day 9 |
+| `OPENAI_MODEL` | GPT model to use | gpt-3.5-turbo ✅ Day 9 |
+| `OPENAI_MAX_TOKENS` | Max tokens per request | 2000 ✅ Day 9 |
 | `OPENAI_TEMPERATURE` | Response creativity (0-1) | 0.7 ✅ Day 9 |
 
 ---
@@ -765,9 +959,17 @@ taskkill /PID <PID> /F
 
 ### OpenAI `proxies` TypeError
 ```powershell
-# Upgrade openai package
 pip install --upgrade openai
 ```
+
+### Circular Import Error
+- Never import services inside model files
+- Models should only import from `app.core.database`
+- Services import from models, never the other way around
+
+### Question ID showing "None"
+- Make sure `db.flush()` is called after `db.add(question)`
+- This forces PostgreSQL to assign the UUID immediately
 
 ### Pylance Import Warnings in VS Code
 - These are **not real errors** — just VS Code can't resolve paths
@@ -776,14 +978,12 @@ pip install --upgrade openai
 
 ### Git Push Rejected
 ```powershell
-# Always pull before push
 git pull origin main --rebase
 git push origin main
 ```
 
 ### Alembic errors
 ```bash
-# Reset migrations (careful - destroys data!)
 alembic downgrade base
 alembic upgrade head
 ```
@@ -810,14 +1010,24 @@ app.include_router(your_router)
 
 ### Protecting a Route
 
-Use `get_current_user` dependency from `app/api/deps.py`:
 ```python
-from app.api.deps import get_current_user
+from app.api.deps import get_current_active_user
 from app.models.user import User
 
 @router.get("/protected")
-def protected_route(current_user: User = Depends(get_current_user)):
+def protected_route(current_user: User = Depends(get_current_active_user)):
     return {"message": f"Hello {current_user.username}"}
+```
+
+### Import Rules (Avoid Circular Imports!)
+
+```
+✅ models   → core.database only
+✅ schemas  → no model imports
+✅ services → models + schemas + core
+✅ api      → services + schemas + models + deps
+❌ models   → services  (NEVER!)
+❌ schemas  → models    (NEVER!)
 ```
 
 ### Code Style
@@ -826,6 +1036,30 @@ def protected_route(current_user: User = Depends(get_current_user)):
 - Use type hints everywhere
 - Add docstrings to all functions
 - Keep functions focused and small
+
+---
+
+## 📊 Progress Tracker
+
+```
+Week 1 - Foundation
+✅ Day 1  - Project setup & GitHub
+✅ Day 2  - Database schema & API design
+✅ Day 3  - FastAPI initialization
+✅ Day 4  - PostgreSQL database + ORM models
+✅ Day 5  - Next.js frontend + landing page
+✅ Day 6  - User registration API
+✅ Day 7  - Login API + JWT tokens
+
+Week 2 - Core Backend APIs & AI Integration
+✅ Day 8  - User profile endpoints
+✅ Day 9  - OpenAI GPT-4 integration
+✅ Day 10 - Question generation + interview create
+✅ Day 11 - PostgreSQL storage + full interview lifecycle
+⬜ Day 12 - Answer submission & AI evaluation
+⬜ Day 13 - Scoring algorithm & feedback
+⬜ Day 14 - Skill gap analysis
+```
 
 ---
 
