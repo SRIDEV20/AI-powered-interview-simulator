@@ -1,13 +1,18 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.schemas.interview import (
     InterviewCreateRequest,
     InterviewCreateResponse,
-    InterviewDetailResponse
+    InterviewDetailResponse,
+    InterviewListResponse,
+    InterviewCompleteResponse
 )
 from app.services.interview_service import interview_service
 from app.api.deps import get_current_active_user
+from app.core.database import get_db
 from app.models.user import User
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,25 +33,17 @@ router = APIRouter(
 )
 async def create_interview(
     request      : InterviewCreateRequest,
-    current_user : User = Depends(get_current_active_user)
+    current_user : User = Depends(get_current_active_user),
+    db           : Session = Depends(get_db)
 ):
-    """
-    Create a new AI-powered interview session.
-
-    - **job_role**: e.g. Python Developer, Data Scientist
-    - **difficulty**: beginner | intermediate | advanced
-    - **num_questions**: 1-10 (default: 5)
-    - **question_type**: technical | behavioral | mixed
-    """
     try:
-        logger.info(f"📝 Creating interview for user {current_user.id} | role={request.job_role}")
-
+        logger.info(f"📝 Creating interview for user {current_user.id}")
         result = interview_service.create_interview(
             request = request,
-            user_id = str(current_user.id)
+            user_id = str(current_user.id),
+            db      = db
         )
         return result
-
     except Exception as e:
         logger.error(f"❌ Interview creation failed: {str(e)}")
         raise HTTPException(
@@ -55,7 +52,36 @@ async def create_interview(
         )
 
 
-# ─── Get Interview ────────────────────────────────────────────────
+# ─── List User Interviews ─────────────────────────────────────────
+
+@router.get(
+    "/",
+    response_model=InterviewListResponse,
+    summary="List all my interviews",
+    description="Returns all interviews created by the current user"
+)
+async def list_interviews(
+    current_user : User = Depends(get_current_active_user),
+    db           : Session = Depends(get_db)
+):
+    try:
+        results = interview_service.get_user_interviews(
+            user_id = str(current_user.id),
+            db      = db
+        )
+        return InterviewListResponse(
+            total      = len(results),
+            interviews = results
+        )
+    except Exception as e:
+        logger.error(f"❌ List interviews failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list interviews: {str(e)}"
+        )
+
+
+# ─── Get Interview Detail ─────────────────────────────────────────
 
 @router.get(
     "/{interview_id}",
@@ -65,17 +91,15 @@ async def create_interview(
 )
 async def get_interview(
     interview_id : str,
-    current_user : User = Depends(get_current_active_user)
+    current_user : User = Depends(get_current_active_user),
+    db           : Session = Depends(get_db)
 ):
-    """
-    Get interview details by ID.
-
-    - **interview_id**: UUID of the interview session
-    """
     try:
-        result = interview_service.get_interview(interview_id)
+        result = interview_service.get_interview(
+            interview_id = interview_id,
+            db           = db
+        )
         return result
-
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,28 +113,32 @@ async def get_interview(
         )
 
 
-# ─── List User Interviews ─────────────────────────────────────────
+# ─── Complete Interview ───────────────────────────────────────────
 
-@router.get(
-    "/",
-    summary="List all interviews",
-    description="Returns all interviews created by the current user"
+@router.patch(
+    "/{interview_id}/complete",
+    summary="Complete an interview",
+    description="Marks an interview session as completed"
 )
-async def list_interviews(
-    current_user: User = Depends(get_current_active_user)
+async def complete_interview(
+    interview_id : str,
+    current_user : User = Depends(get_current_active_user),
+    db           : Session = Depends(get_db)
 ):
-    """
-    Get all interviews for the current user.
-    """
     try:
-        results = interview_service.get_user_interviews(str(current_user.id))
-        return {
-            "total"      : len(results),
-            "interviews" : results
-        }
+        result = interview_service.complete_interview(
+            interview_id = interview_id,
+            db           = db
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
     except Exception as e:
-        logger.error(f"❌ List interviews failed: {str(e)}")
+        logger.error(f"❌ Complete interview failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list interviews: {str(e)}"
+            detail=f"Failed to complete interview: {str(e)}"
         )

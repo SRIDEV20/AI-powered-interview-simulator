@@ -1,28 +1,29 @@
 import uuid
+import json
 import logging
 from datetime import datetime
 from typing import List
 
+from sqlalchemy.orm import Session
+
 from app.services.openai_service import openai_service
+from app.models.interview import Interview, DifficultyLevel, InterviewStatus
+from app.models.question import Question, QuestionType
 from app.schemas.interview import (
     InterviewCreateRequest,
     InterviewCreateResponse,
     InterviewDetailResponse,
+    InterviewSummary,
     QuestionResponse
 )
 
 logger = logging.getLogger(__name__)
 
-# ─── Temporary In-Memory Store ────────────────────────────────────
-# ⚠️ Stores interviews in memory for now
-# Day 11 → Replace with real PostgreSQL storage
-_interview_store: dict = {}
-
 
 class InterviewService:
     """
     Handles interview creation and question generation.
-    Uses OpenAI GPT-4 to generate dynamic questions.
+    Saves everything to PostgreSQL database.
     """
 
     # ─── Prompt Templates ─────────────────────────────────────────
@@ -41,6 +42,8 @@ Generate a mix of technical and behavioral interview questions.
 Return ONLY valid JSON array. No markdown, no explanation, just pure JSON."""
     }
 
+    # ─── Build Prompt ──────────────────────────────────────────────
+
     def _build_prompt(
         self,
         job_role     : str,
@@ -48,7 +51,6 @@ Return ONLY valid JSON array. No markdown, no explanation, just pure JSON."""
         num_questions: int,
         question_type: str
     ) -> str:
-        """Build the user prompt for GPT-4"""
         return f"""Generate exactly {num_questions} interview questions for:
 
 Role       : {job_role}
@@ -71,7 +73,7 @@ Rules:
 - expected_points must have 3-5 items
 - Return ONLY the JSON array, nothing else"""
 
-    # ─── Generate Questions ────────────────────────────────────────
+    # ─── Generate Questions via GPT ────────────────────────────────
 
     def _generate_questions(
         self,
@@ -79,14 +81,20 @@ Rules:
         difficulty   : str,
         num_questions: int,
         question_type: str
-    ) -> List[QuestionResponse]:
-        """Call GPT-4 and parse questions"""
-        import json
+    ) -> List[dict]:
+        """Call GPT and parse questions into list of dicts"""
 
-        system_prompt = self.SYSTEM_PROMPTS.get(question_type, self.SYSTEM_PROMPTS["mixed"])
-        user_prompt   = self._build_prompt(job_role, difficulty, num_questions, question_type)
+        system_prompt = self.SYSTEM_PROMPTS.get(
+            question_type, self.SYSTEM_PROMPTS["mixed"]
+        )
+        user_prompt = self._build_prompt(
+            job_role, difficulty, num_questions, question_type
+        )
 
-        logger.info(f"🤖 Generating {num_questions} {question_type} questions for {job_role} ({difficulty})")
+        logger.info(
+            f"🤖 Generating {num_questions} {question_type} "
+            f"questions for {job_role} ({difficulty})"
+        )
 
         raw_response = openai_service.chat(
             system_prompt = system_prompt,
@@ -104,118 +112,198 @@ Rules:
         cleaned = cleaned.strip()
 
         questions_data = json.loads(cleaned)
-        logger.info(f"✅ Generated {len(questions_data)} questions successfully")
+        logger.info(f"✅ Generated {len(questions_data)} questions")
+        return questions_data
 
-        return [QuestionResponse(**q) for q in questions_data]
+    # ─── Map difficulty string → model Enum ───────────────────────
+
+    def _map_difficulty(self, difficulty: str) -> DifficultyLevel:
+        mapping = {
+            "beginner"    : DifficultyLevel.BEGINNER,
+            "intermediate": DifficultyLevel.INTERMEDIATE,
+            "advanced"    : DifficultyLevel.ADVANCED
+        }
+        return mapping.get(difficulty.lower(), DifficultyLevel.INTERMEDIATE)
+
+    # ─── Map question_type string → model Enum ────────────────────
+
+    def _map_question_type(self, qtype: str) -> QuestionType:
+        mapping = {
+            "technical" : QuestionType.TECHNICAL,
+            "behavioral": QuestionType.BEHAVIORAL,
+            "mixed"     : QuestionType.TECHNICAL
+        }
+        return mapping.get(qtype.lower(), QuestionType.TECHNICAL)
 
     # ─── Create Interview ──────────────────────────────────────────
 
     def create_interview(
         self,
-        request: InterviewCreateRequest,
-        user_id: str
+        request : InterviewCreateRequest,
+        user_id : str,
+        db      : Session
     ) -> InterviewCreateResponse:
         """
-        Create a new interview session with GPT-4 generated questions.
-
-        Args:
-            request : Interview creation request (role, difficulty, etc.)
-            user_id : ID of the user creating the interview
-
-        Returns:
-            InterviewCreateResponse with generated questions
+        Create interview + generate questions → save to PostgreSQL.
         """
-        interview_id = str(uuid.uuid4())
-        created_at   = datetime.utcnow()
-
-        # ── Generate questions via GPT-4 ──────────────────────────
-        questions = self._generate_questions(
+        # ── Generate questions via GPT ────────────────────────────
+        questions_data = self._generate_questions(
             job_role      = request.job_role,
             difficulty    = request.difficulty.value,
             num_questions = request.num_questions,
             question_type = request.question_type.value
         )
 
-        # ── Store in memory (temporary) ───────────────────────────
-        _interview_store[interview_id] = {
-            "interview_id"   : interview_id,
-            "user_id"        : user_id,
-            "job_role"       : request.job_role,
-            "difficulty"     : request.difficulty.value,
-            "question_type"  : request.question_type.value,
-            "total_questions": len(questions),
-            "questions"      : [q.model_dump() for q in questions],
-            "status"         : "active",
-            "created_at"     : created_at
-        }
+        # ── Create Interview record ───────────────────────────────
+        interview = Interview(
+            user_id          = uuid.UUID(user_id),
+            job_role         = request.job_role,
+            difficulty_level = self._map_difficulty(request.difficulty.value),
+            status           = InterviewStatus.IN_PROGRESS,
+            started_at       = datetime.utcnow()
+        )
+        db.add(interview)
+        db.flush()   # get interview.id without full commit
 
-        logger.info(f"✅ Interview {interview_id} created for user {user_id}")
+        # ── Create Question records ───────────────────────────────
+        question_responses = []
+        for idx, q_data in enumerate(questions_data, start=1):
+            question = Question(
+                interview_id    = interview.id,
+                question_text   = q_data["question"],
+                question_type   = self._map_question_type(q_data.get("type", "technical")),
+                difficulty      = q_data.get("difficulty", request.difficulty.value),
+                skill_category  = request.job_role,
+                expected_answer = ", ".join(q_data.get("expected_points", [])),
+                order_number    = idx
+            )
+            db.add(question)
+            db.flush()   # ✅ get question.id immediately after add
+
+            question_responses.append(QuestionResponse(
+                id              = str(question.id),   # ✅ Now has real UUID
+                question        = q_data["question"],
+                type            = q_data.get("type", "technical"),
+                difficulty      = q_data.get("difficulty", request.difficulty.value),
+                expected_points = q_data.get("expected_points", []),
+                order_number    = idx
+            ))
+
+        db.commit()
+        db.refresh(interview)
+
+        logger.info(f"✅ Interview {interview.id} saved to PostgreSQL")
 
         return InterviewCreateResponse(
-            interview_id   = interview_id,
-            job_role       = request.job_role,
-            difficulty     = request.difficulty.value,
-            question_type  = request.question_type.value,
-            total_questions= len(questions),
-            questions      = questions,
-            status         = "active",
-            created_at     = created_at
+            interview_id    = str(interview.id),
+            job_role        = interview.job_role,
+            difficulty      = interview.difficulty_level.value,
+            question_type   = request.question_type.value,
+            total_questions = len(question_responses),
+            questions       = question_responses,
+            status          = interview.status.value,
+            created_at      = interview.started_at
         )
 
     # ─── Get Interview ─────────────────────────────────────────────
 
-    def get_interview(self, interview_id: str) -> InterviewDetailResponse:
-        """
-        Get interview details by ID.
+    def get_interview(
+        self,
+        interview_id : str,
+        db           : Session
+    ) -> InterviewDetailResponse:
+        """Get interview + questions from PostgreSQL"""
 
-        Args:
-            interview_id : UUID of the interview
+        interview = db.query(Interview).filter(
+            Interview.id == uuid.UUID(interview_id)
+        ).first()
 
-        Returns:
-            InterviewDetailResponse with all questions
-        """
-        if interview_id not in _interview_store:
+        if not interview:
             raise ValueError(f"Interview {interview_id} not found")
 
-        data = _interview_store[interview_id]
+        questions = db.query(Question).filter(
+            Question.interview_id == interview.id
+        ).order_by(Question.order_number).all()
 
-        return InterviewDetailResponse(
-            interview_id   = data["interview_id"],
-            job_role       = data["job_role"],
-            difficulty     = data["difficulty"],
-            question_type  = data["question_type"],
-            total_questions= data["total_questions"],
-            questions      = [QuestionResponse(**q) for q in data["questions"]],
-            status         = data["status"],
-            created_at     = data["created_at"]
-        )
-
-    # ─── List Interviews ───────────────────────────────────────────
-
-    def get_user_interviews(self, user_id: str) -> list:
-        """
-        Get all interviews for a user (summary only).
-
-        Args:
-            user_id : ID of the user
-
-        Returns:
-            List of interview summaries
-        """
-        user_interviews = [
-            {
-                "interview_id"   : v["interview_id"],
-                "job_role"       : v["job_role"],
-                "difficulty"     : v["difficulty"],
-                "total_questions": v["total_questions"],
-                "status"         : v["status"],
-                "created_at"     : v["created_at"]
-            }
-            for v in _interview_store.values()
-            if v["user_id"] == user_id
+        question_responses = [
+            QuestionResponse(
+                id              = str(q.id),          # ✅ Real UUID from DB
+                question        = q.question_text,
+                type            = q.question_type.value,
+                difficulty      = q.difficulty,
+                expected_points = q.expected_answer.split(", ") if q.expected_answer else [],
+                order_number    = q.order_number
+            )
+            for q in questions
         ]
 
-        return user_interviews
+        return InterviewDetailResponse(
+            interview_id    = str(interview.id),
+            job_role        = interview.job_role,
+            difficulty      = interview.difficulty_level.value,
+            question_type   = "mixed",
+            total_questions = len(question_responses),
+            questions       = question_responses,
+            status          = interview.status.value,
+            created_at      = interview.started_at
+        )
+
+    # ─── List User Interviews ──────────────────────────────────────
+
+    def get_user_interviews(
+        self,
+        user_id : str,
+        db      : Session
+    ) -> list:
+        """Get all interviews for a user from PostgreSQL"""
+
+        interviews = db.query(Interview).filter(
+            Interview.user_id == uuid.UUID(user_id)
+        ).order_by(Interview.started_at.desc()).all()
+
+        return [
+            InterviewSummary(
+                interview_id    = str(i.id),
+                job_role        = i.job_role,
+                difficulty      = i.difficulty_level.value,
+                total_questions = len(i.questions),
+                status          = i.status.value,
+                overall_score   = float(i.overall_score) if i.overall_score else None,
+                created_at      = i.started_at
+            )
+            for i in interviews
+        ]
+
+    # ─── Complete Interview ────────────────────────────────────────
+
+    def complete_interview(
+        self,
+        interview_id : str,
+        db           : Session
+    ) -> dict:
+        """Mark interview as completed"""
+
+        interview = db.query(Interview).filter(
+            Interview.id == uuid.UUID(interview_id)
+        ).first()
+
+        if not interview:
+            raise ValueError(f"Interview {interview_id} not found")
+
+        interview.status       = InterviewStatus.COMPLETED
+        interview.completed_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(interview)
+
+        logger.info(f"✅ Interview {interview_id} marked as completed")
+
+        return {
+            "interview_id": str(interview.id),
+            "status"      : interview.status.value,
+            "message"     : "Interview completed successfully",
+            "completed_at": interview.completed_at
+        }
 
 
 # ─── Singleton Instance ───────────────────────────────────────────
