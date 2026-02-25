@@ -7,9 +7,14 @@ from app.schemas.interview import (
     InterviewCreateResponse,
     InterviewDetailResponse,
     InterviewListResponse,
-    InterviewCompleteResponse
+)
+from app.schemas.response import (
+    SubmitAnswerRequest,
+    SubmitAnswerResponse,
+    InterviewResultsResponse
 )
 from app.services.interview_service import interview_service
+from app.services.evaluation_service import evaluation_service
 from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
@@ -22,7 +27,7 @@ router = APIRouter(
 )
 
 
-# ─── Create Interview ─────────────────────────────────────────────
+# ─── Create Interview ───────────────────────────────────��─────────
 
 @router.post(
     "/create",
@@ -110,6 +115,79 @@ async def get_interview(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get interview: {str(e)}"
+        )
+
+
+# ─── Submit Answer ────────────────────────────────────────────────
+
+@router.post(
+    "/{interview_id}/answer/{question_id}",
+    response_model=SubmitAnswerResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit answer for a question",
+    description="Submits user answer, evaluates with GPT-4, saves score and feedback"
+)
+async def submit_answer(
+    interview_id : str,
+    question_id  : str,
+    request      : SubmitAnswerRequest,
+    current_user : User = Depends(get_current_active_user),
+    db           : Session = Depends(get_db)
+):
+    try:
+        logger.info(
+            f"📝 Answer submitted by user {current_user.id} "
+            f"for question {question_id}"
+        )
+        result = evaluation_service.submit_answer(
+            interview_id = interview_id,
+            question_id  = question_id,
+            request      = request,
+            db           = db
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"❌ Answer submission failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit answer: {str(e)}"
+        )
+
+
+# ─── Get Interview Results ─────────────────────────────────────────
+
+@router.get(
+    "/{interview_id}/results",
+    response_model=InterviewResultsResponse,
+    summary="Get full interview results",
+    description="Returns all questions with answers, scores and AI feedback"
+)
+async def get_interview_results(
+    interview_id : str,
+    current_user : User = Depends(get_current_active_user),
+    db           : Session = Depends(get_db)
+):
+    try:
+        result = evaluation_service.get_interview_results(
+            interview_id = interview_id,
+            db           = db
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"❌ Get results failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get results: {str(e)}"
         )
 
 
