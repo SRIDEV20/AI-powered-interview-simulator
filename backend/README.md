@@ -23,8 +23,9 @@ backend/
 │   │   ├── auth.py           # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
 │   │   ├── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
 │   │   ├── user.py           # ✅ Day 8 - Profile & Stats endpoints
-│   │   └── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
-│   │                         # ✅ Day 12 - Answer, Results | ✅ Day 13 - Score
+│   │   ├── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │   │                     # ✅ Day 12 - Answer, Results | ✅ Day 13 - Score
+│   │   └── skill_gap.py      # ✅ Day 14 - Analyze, User Gaps, Interview Gaps
 │   ├── core/                 # Configuration & database
 │   │   ├── config.py         # ✅ Day 9 - Added OpenAI settings
 │   │   ├── database.py       # Database connection + get_db dependency
@@ -34,26 +35,29 @@ backend/
 │   │   ├── interview.py      # ✅ Day 4 - Interview, DifficultyLevel, InterviewStatus
 │   │   ├── question.py       # ✅ Day 4 - Question, QuestionType
 │   │   ├── response.py       # ✅ Day 4 - Response (AI feedback)
-│   │   └── skill_gap.py      # ✅ Day 4 - SkillGap
+│   │   └── skill_gap.py      # ✅ Day 4 - SkillGap, ProficiencyLevel
 │   ├── schemas/              # Pydantic schemas
 │   │   ├── __init__.py
 │   │   ├── user.py           # ✅ Day 8 - UserProfileUpdate, UserStatsResponse
 │   │   ├── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
 │   │   ├── response.py       # ✅ Day 12 - SubmitAnswer, EvaluationResult, Results
-│   │   └── score.py          # ✅ Day 13 - CategoryScore, PerformanceLevel, ScoreResponse
+│   │   ├── score.py          # ✅ Day 13 - CategoryScore, PerformanceLevel, ScoreResponse
+│   │   └── skill_gap.py      # ✅ Day 14 - SkillGapItem, AnalyzeResponse, UserGapsResponse
 │   └── services/             # Business logic
 │       ├── __init__.py
 │       ├── openai_service.py    # ✅ Day 9  - GPT-4 service wrapper
 │       ├── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
+│       │                        # ✅ Day 14 - Fixed skill_category extraction
 │       ├── evaluation_service.py# ✅ Day 12 - Answer evaluation + results
-│       └── scoring_service.py   # ✅ Day 13 - Scoring algorithm + GPT summary
+│       ├── scoring_service.py   # ✅ Day 13 - Scoring algorithm + GPT summary
+│       └── skill_gap_service.py # ✅ Day 14 - Skill gap analyzer + recommendations
 ├── alembic/                  # Database migrations
 │   ├── versions/             # Migration files
 │   └── env.py                # Alembic configuration
 ├── venv/                     # Virtual environment (not in git)
 ├── .env                      # Environment variables (not in git)
 ├── alembic.ini               # Alembic settings
-├── main.py                   # ✅ Day 9 - Added AI test endpoint
+├── main.py                   # ✅ Day 14 - Registered skill_gap router
 ├── requirements.txt          # ✅ Day 9 - Added openai>=1.50.0
 └── README.md
 ```
@@ -97,7 +101,7 @@ questions (1) → (1) response
 |--------|------|-------------|
 | `id` | UUID | Primary key (auto-generated) |
 | `user_id` | UUID | Foreign key → users.id |
-| `job_role` | String(100) | e.g. Python Developer |
+| `job_role` | String(100) | e.g. Java Developer |
 | `difficulty_level` | Enum | beginner / intermediate / advanced |
 | `status` | Enum | in_progress / completed / abandoned |
 | `overall_score` | DECIMAL(5,2) | 0-100 (auto-calculated from responses) |
@@ -114,7 +118,7 @@ questions (1) → (1) response
 | `question_text` | Text | The question content |
 | `question_type` | Enum | technical / behavioral / coding / system_design |
 | `difficulty` | String(20) | beginner / intermediate / advanced |
-| `skill_category` | String(100) | e.g. Python, Algorithms |
+| `skill_category` | String(100) | e.g. OOP, Concurrency, Memory Management |
 | `expected_answer` | Text | Key points for AI comparison |
 | `order_number` | Integer | Question order in interview |
 | `created_at` | DateTime | Auto timestamp |
@@ -132,6 +136,19 @@ questions (1) → (1) response
 | `weaknesses` | Text | JSON array of improvements |
 | `answered_at` | DateTime | Auto timestamp |
 | `time_taken_seconds` | Integer | Time taken to answer |
+
+### Skill Gap Model (`skill_gaps` table) ✅ Day 14
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key (auto-generated) |
+| `user_id` | UUID | Foreign key → users.id |
+| `interview_id` | UUID | Foreign key → interviews.id |
+| `skill_name` | String(100) | e.g. OOP, Concurrency, Memory Management |
+| `proficiency_level` | Enum | weak / moderate / strong |
+| `gap_score` | DECIMAL(5,2) | 0-100 (lower = bigger gap) |
+| `recommendation` | Text | GPT-4 generated recommendation |
+| `identified_at` | DateTime | Auto timestamp |
 
 ## ⚙️ Setup Instructions
 
@@ -300,13 +317,13 @@ Once the server is running, access interactive documentation:
 | `GET` | `/api/interview/{interview_id}/results` | Get full interview results | ✅ Done - Day 12 |
 | `GET` | `/api/interview/{interview_id}/score` | Get detailed score breakdown | ✅ Done - Day 13 |
 
-### Skill Gaps (Coming Soon)
+### Skill Gaps ✅ Day 14
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `POST` | `/api/skill-gaps/analyze/{interview_id}` | Analyze & save skill gaps | ⬜ Day 14 |
-| `GET` | `/api/skill-gaps/` | Get all user skill gaps | ⬜ Day 14 |
-| `GET` | `/api/skill-gaps/interview/{interview_id}` | Get interview skill gaps | ⬜ Day 14 |
+| `POST` | `/api/skill-gaps/analyze/{interview_id}` | Analyze & save skill gaps | ✅ Done - Day 14 |
+| `GET` | `/api/skill-gaps/` | Get all user skill gaps | ✅ Done - Day 14 |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Get interview skill gaps | ✅ Done - Day 14 |
 
 ---
 
@@ -537,10 +554,10 @@ Authorization: Bearer <your_token>
 **Request Body:**
 ```json
 {
-  "job_role": "Python Developer",
+  "job_role": "Java Developer",
   "difficulty": "intermediate",
   "num_questions": 3,
-  "question_type": "mixed"
+  "question_type": "technical"
 }
 ```
 
@@ -556,27 +573,27 @@ Authorization: Bearer <your_token>
 **Success Response (201 Created):**
 ```json
 {
-  "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
-  "job_role": "Python Developer",
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "job_role": "Java Developer",
   "difficulty": "intermediate",
-  "question_type": "mixed",
+  "question_type": "technical",
   "total_questions": 3,
   "questions": [
     {
-      "id": "d9dee515-78a5-4539-ab7a-1d35ee52a906",
-      "question": "Explain the difference between list comprehension and generator expression in Python.",
+      "id": "8fac5f8c-975a-41a0-aa59-2d94517b8ed9",
+      "question": "Explain the difference between abstract class and interface in Java.",
       "type": "technical",
       "difficulty": "intermediate",
       "expected_points": [
-        "List comprehension returns a list",
-        "Generator expressions are memory-efficient",
-        "List comprehensions use [] while generators use ()"
+        "Abstract class can have constructor, interface cannot",
+        "Interface supports multiple inheritance, abstract class does not",
+        "Abstract class can have non-abstract methods"
       ],
       "order_number": 1
     }
   ],
   "status": "in_progress",
-  "created_at": "2026-02-24T13:33:15.536135"
+  "created_at": "2026-02-27T14:58:44.523534"
 }
 ```
 
@@ -595,13 +612,13 @@ Authorization: Bearer <your_token>
   "total": 1,
   "interviews": [
     {
-      "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
-      "job_role": "Python Developer",
+      "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+      "job_role": "Java Developer",
       "difficulty": "intermediate",
       "total_questions": 3,
       "status": "in_progress",
       "overall_score": null,
-      "created_at": "2026-02-24T13:33:15.536135"
+      "created_at": "2026-02-27T14:58:44.523534"
     }
   ]
 }
@@ -619,27 +636,14 @@ Authorization: Bearer <your_token>
 **Success Response (200 OK):**
 ```json
 {
-  "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
-  "job_role": "Python Developer",
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "job_role": "Java Developer",
   "difficulty": "intermediate",
   "question_type": "mixed",
   "total_questions": 3,
-  "questions": [
-    {
-      "id": "d9dee515-78a5-4539-ab7a-1d35ee52a906",
-      "question": "Explain the difference between list comprehension and generator expression in Python.",
-      "type": "technical",
-      "difficulty": "intermediate",
-      "expected_points": [
-        "List comprehension returns a list",
-        "Generator expressions are memory-efficient",
-        "List comprehensions use [] while generators use ()"
-      ],
-      "order_number": 1
-    }
-  ],
+  "questions": [...],
   "status": "in_progress",
-  "created_at": "2026-02-24T13:33:15.536135"
+  "created_at": "2026-02-27T14:58:44.523534"
 }
 ```
 
@@ -662,10 +666,10 @@ Authorization: Bearer <your_token>
 **Success Response (200 OK):**
 ```json
 {
-  "interview_id": "849ff4b1-b0af-47de-8c7b-959710f2b137",
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
   "status": "completed",
   "message": "Interview completed successfully",
-  "completed_at": "2026-02-24T13:42:47.510167"
+  "completed_at": "2026-02-27T15:10:00.000000"
 }
 ```
 
@@ -690,8 +694,8 @@ Authorization: Bearer <your_token>
 **Request Body:**
 ```json
 {
-  "user_answer": "A list comprehension returns a full list stored in memory, while a generator expression returns a lazy iterator that yields items one at a time. Generators are more memory efficient for large datasets.",
-  "time_taken_seconds": 120
+  "user_answer": "Abstract class can have constructors, instance variables and both abstract and non-abstract methods. Interface can only have abstract methods and constants.",
+  "time_taken_seconds": 90
 }
 ```
 
@@ -706,28 +710,17 @@ Authorization: Bearer <your_token>
 ```json
 {
   "response_id": "44b32da7-237d-4547-8d33-3cd95c891a78",
-  "interview_id": "f569d79e-baff-4ac7-b03f-46b9190d5857",
-  "question_id": "d9a87d4f-3257-4d4c-8896-a782d987565f",
-  "question_text": "Explain the difference between list comprehension and generator expression in Python.",
-  "user_answer": "A list comprehension returns a full list...",
-  "score": 85,
-  "feedback": "The candidate provided a clear and accurate explanation...",
-  "strengths": [
-    "Clear explanation",
-    "Memory efficiency understanding"
-  ],
-  "improvements": [
-    "Could provide more examples",
-    "Could elaborate on lazy evaluation benefits"
-  ],
-  "keywords_mentioned": [
-    "list comprehension",
-    "generator expression",
-    "memory efficiency",
-    "lazy evaluation"
-  ],
-  "time_taken_seconds": 120,
-  "answered_at": "2026-02-25T17:01:14.263734"
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "question_id": "8fac5f8c-975a-41a0-aa59-2d94517b8ed9",
+  "question_text": "Explain the difference between abstract class and interface in Java.",
+  "user_answer": "Abstract class can have constructors...",
+  "score": 70,
+  "feedback": "Good explanation covering the main differences...",
+  "strengths": ["Covered constructors", "Mentioned multiple inheritance"],
+  "improvements": ["Could elaborate on default methods in Java 8+"],
+  "keywords_mentioned": ["abstract class", "interface", "constructor", "multiple inheritance"],
+  "time_taken_seconds": 90,
+  "answered_at": "2026-02-27T15:02:00.000000"
 }
 ```
 
@@ -761,30 +754,30 @@ Authorization: Bearer <your_token>
 **Success Response (200 OK):**
 ```json
 {
-  "interview_id": "f569d79e-baff-4ac7-b03f-46b9190d5857",
-  "job_role": "Python Developer",
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "job_role": "Java Developer",
   "difficulty": "intermediate",
   "status": "in_progress",
-  "overall_score": 51.67,
+  "overall_score": 55.0,
   "total_questions": 3,
   "answered": 3,
   "responses": [
     {
       "response_id": "44b32da7-...",
-      "question_id": "d9a87d4f-...",
-      "question_text": "Explain the difference between list comprehension...",
+      "question_id": "8fac5f8c-...",
+      "question_text": "Explain the difference between abstract class and interface in Java.",
       "question_type": "technical",
       "order_number": 1,
-      "user_answer": "A list comprehension returns a full list...",
-      "score": 85,
-      "feedback": "The candidate provided a clear and accurate explanation...",
-      "strengths": ["Clear explanation", "Memory efficiency understanding"],
-      "improvements": ["Could provide more examples"],
-      "time_taken_seconds": 120,
-      "answered_at": "2026-02-25T17:01:14.263734"
+      "user_answer": "Abstract class can have constructors...",
+      "score": 70,
+      "feedback": "Good explanation...",
+      "strengths": ["Covered constructors"],
+      "improvements": ["Could elaborate on default methods"],
+      "time_taken_seconds": 90,
+      "answered_at": "2026-02-27T15:02:00.000000"
     }
   ],
-  "created_at": "2026-02-25T16:59:07.029162",
+  "created_at": "2026-02-27T14:58:44.523534",
   "completed_at": null
 }
 ```
@@ -816,11 +809,11 @@ Authorization: Bearer <your_token>
 **Success Response (200 OK):**
 ```json
 {
-  "interview_id": "f569d79e-baff-4ac7-b03f-46b9190d5857",
-  "job_role": "Python Developer",
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "job_role": "Java Developer",
   "difficulty": "intermediate",
   "status": "in_progress",
-  "overall_score": 51.67,
+  "overall_score": 55.0,
   "performance": {
     "level": "average",
     "label": "Average 📈",
@@ -834,28 +827,16 @@ Authorization: Bearer <your_token>
   "category_scores": [
     {
       "category": "technical",
-      "average_score": 51.67,
+      "average_score": 55.0,
       "total_questions": 3,
       "answered": 3
     }
   ],
-  "question_scores": [
-    {
-      "question_id": "d9a87d4f-...",
-      "question_text": "Explain the difference between list comprehension...",
-      "question_type": "technical",
-      "order_number": 1,
-      "score": 85,
-      "feedback": "Clear and accurate explanation...",
-      "strengths": ["Clear explanation", "Memory efficiency understanding"],
-      "improvements": ["Could provide more examples"],
-      "answered": true
-    }
-  ],
+  "question_scores": [...],
   "overall_summary": "GPT-4 generated interview summary...",
   "top_strengths": ["strength 1", "strength 2"],
   "top_improvements": ["improvement 1", "improvement 2"],
-  "started_at": "2026-02-25T16:59:07.029162",
+  "started_at": "2026-02-27T14:58:44.523534",
   "completed_at": null
 }
 ```
@@ -868,6 +849,166 @@ Authorization: Bearer <your_token>
 | 70 - 84 | good | Good 👍 | blue |
 | 50 - 69 | average | Average 📈 | yellow |
 | 0 - 49 | poor | Needs Work 💪 | red |
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `401` | Not authenticated |
+
+---
+
+## 🔍 Skill Gap Analysis - Day 14
+
+### Analyze Skill Gaps - `POST /api/skill-gaps/analyze/{interview_id}` ✅ Day 14
+
+Analyzes interview responses, groups by `skill_category`, calculates average scores per skill, generates GPT-4 recommendations and saves to `skill_gaps` table.
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Request Body:**
+```json
+{
+  "force_reanalyze": false
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `force_reanalyze` | bool | false | Set to true to re-analyze and overwrite existing gaps |
+
+**Success Response (201 Created):**
+```json
+{
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "job_role": "Java Developer",
+  "overall_score": 55.0,
+  "total_skills": 3,
+  "weak_skills": 1,
+  "moderate_skills": 1,
+  "strong_skills": 1,
+  "skill_gaps": [
+    {
+      "skill_name": "OOP",
+      "gap_score": 70.0,
+      "proficiency_level": "moderate",
+      "recommendation": "Work on complex class hierarchies and design patterns."
+    },
+    {
+      "skill_name": "Concurrency",
+      "gap_score": 85.0,
+      "proficiency_level": "strong",
+      "recommendation": "Practice Concurrency skills regularly."
+    },
+    {
+      "skill_name": "Memory Management",
+      "gap_score": 10.0,
+      "proficiency_level": "weak",
+      "recommendation": "Practice identifying memory leaks and optimizing memory usage."
+    }
+  ],
+  "analyzed_at": "2026-02-27T15:04:47.820299"
+}
+```
+
+**Proficiency Levels:**
+
+| Score Range | Level | Meaning |
+|-------------|-------|---------|
+| 75 - 100 | strong | Good grasp of the skill |
+| 50 - 74 | moderate | Needs some improvement |
+| 0 - 49 | weak | Significant gap identified |
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `404` | No questions found for interview |
+| `404` | No answers found — answer questions before analyzing |
+| `401` | Not authenticated |
+
+---
+
+### Get All User Skill Gaps - `GET /api/skill-gaps/` ✅ Day 14
+
+Returns all skill gaps for the current user across all interviews, sorted by lowest score first (biggest gaps first).
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "user_id": "cd45625f-3c51-453d-8310-fd3b365ffa51",
+  "total_gaps": 4,
+  "weak_count": 1,
+  "moderate_count": 2,
+  "strong_count": 1,
+  "skill_gaps": [
+    {
+      "id": "b28e3382-0502-4e8b-ac69-367234f78ffa",
+      "skill_name": "Memory Management",
+      "proficiency_level": "weak",
+      "gap_score": 10.0,
+      "recommendation": "Practice identifying memory leaks and optimizing memory usage.",
+      "identified_at": "2026-02-27T15:04:47.820299"
+    },
+    {
+      "id": "5d871147-d09c-4e51-8ed4-5a48de8d4baa",
+      "skill_name": "OOP",
+      "proficiency_level": "moderate",
+      "gap_score": 70.0,
+      "recommendation": "Work on complex class hierarchies and design patterns.",
+      "identified_at": "2026-02-27T15:04:47.820299"
+    },
+    {
+      "id": "58b788f0-0daf-4129-aecf-670e8df49606",
+      "skill_name": "Concurrency",
+      "proficiency_level": "strong",
+      "gap_score": 85.0,
+      "recommendation": "Practice Concurrency skills regularly.",
+      "identified_at": "2026-02-27T15:04:47.820299"
+    }
+  ]
+}
+```
+
+---
+
+### Get Interview Skill Gaps - `GET /api/skill-gaps/interview/{interview_id}` ✅ Day 14
+
+Returns skill gaps for a specific interview.
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "interview_id": "f29c0304-09e5-4119-93bd-4763a336da11",
+  "job_role": "Java Developer",
+  "total_gaps": 3,
+  "skill_gaps": [
+    {
+      "id": "b28e3382-...",
+      "skill_name": "Memory Management",
+      "proficiency_level": "weak",
+      "gap_score": 10.0,
+      "recommendation": "Practice identifying memory leaks.",
+      "identified_at": "2026-02-27T15:04:47.820299"
+    }
+  ]
+}
+```
 
 **Error Responses:**
 
@@ -950,13 +1091,16 @@ Authorization: Bearer <your_token>
 | `PerformanceLevel` | Day 13 | Level label + message + color |
 | `InterviewScoreResponse` | Day 13 | Full score breakdown response |
 
-### `app/api/user.py` ✅ Day 8
+### `app/schemas/skill_gap.py` ✅ Day 14
 
-| Function | Description |
-|----------|-------------|
-| `get_profile()` | Returns current user profile |
-| `update_profile()` | Updates full_name and/or username |
-| `get_stats()` | Returns dashboard statistics |
+| Schema | Day | Usage |
+|--------|-----|-------|
+| `SkillGapItem` | Day 14 | Single skill gap entry |
+| `AnalyzeSkillGapsRequest` | Day 14 | Validate analyze request body |
+| `SkillGapSummary` | Day 14 | Skill with score + level + recommendation |
+| `AnalyzeSkillGapsResponse` | Day 14 | Full analysis result |
+| `UserSkillGapsResponse` | Day 14 | All skill gaps across all interviews |
+| `InterviewSkillGapsResponse` | Day 14 | Skill gaps for a specific interview |
 
 ### `app/api/interview.py` ✅ Day 10 → Day 13
 
@@ -970,6 +1114,14 @@ Authorization: Bearer <your_token>
 | `get_interview_results()` | Day 12 | Returns all Q&A + scores + feedback |
 | `get_interview_score()` | Day 13 | Returns full score breakdown + summary |
 
+### `app/api/skill_gap.py` ✅ Day 14
+
+| Function | Day | Description |
+|----------|-----|-------------|
+| `analyze_skill_gaps()` | Day 14 | Analyze interview → save gaps to PostgreSQL |
+| `get_user_skill_gaps()` | Day 14 | Returns all skill gaps for current user |
+| `get_interview_skill_gaps()` | Day 14 | Returns skill gaps for a specific interview |
+
 ### `app/services/openai_service.py` ✅ Day 9
 
 | Function | Description |
@@ -977,17 +1129,17 @@ Authorization: Bearer <your_token>
 | `chat()` | Base GPT-4 chat call |
 | `generate_interview_questions()` | Generate questions by role & difficulty |
 | `evaluate_answer()` | Evaluate candidate answer with score & feedback |
-| `analyze_skill_gaps()` | Analyze interview performance & identify gaps |
 | `test_connection()` | Verify API key is working |
 
-### `app/services/interview_service.py` ✅ Day 10 + Day 11
+### `app/services/interview_service.py` ✅ Day 10 + Day 11 + Day 14
 
 | Function | Description |
 |----------|-------------|
-| `_build_prompt()` | Build GPT prompt for question generation |
+| `_build_prompt()` | Build GPT prompt for question generation (with skill_category field) |
 | `_generate_questions()` | Call GPT and parse response to list of dicts |
 | `_map_difficulty()` | Map string to DifficultyLevel enum |
 | `_map_question_type()` | Map string to QuestionType enum |
+| `_extract_skill_category()` | Extract specific skill from GPT response (Fixed Day 14) |
 | `create_interview()` | Create interview + questions → save to PostgreSQL |
 | `get_interview()` | Fetch interview + questions from PostgreSQL |
 | `get_user_interviews()` | Fetch all interviews for a user from PostgreSQL |
@@ -1011,6 +1163,18 @@ Authorization: Bearer <your_token>
 | `_calculate_category_scores()` | Average scores per question type category |
 | `_generate_summary()` | GPT-4 overall interview summary + top strengths |
 | `get_interview_score()` | Full score breakdown → update DB → return response |
+
+### `app/services/skill_gap_service.py` ✅ Day 14
+
+| Function | Description |
+|----------|-------------|
+| `_get_proficiency_level()` | Map score to weak / moderate / strong |
+| `_build_skill_scores()` | Group questions by skill_category → average scores |
+| `_generate_recommendations()` | GPT-4 generates per-skill recommendations |
+| `analyze_interview()` | Full pipeline: fetch → analyze → GPT → save → return |
+| `_build_response_from_existing()` | Return cached results without re-analyzing |
+| `get_user_skill_gaps()` | Fetch all skill gaps for user from PostgreSQL |
+| `get_interview_skill_gaps()` | Fetch skill gaps for one interview from PostgreSQL |
 
 ---
 
@@ -1054,52 +1218,74 @@ Open browser and go to: **http://localhost:8000/api/docs**
 
 ### Option 2 - PowerShell
 
-#### Test Registration & Login
+#### Test Full Interview Lifecycle + Skill Gap Analysis
 
 ```powershell
-# Register
-Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
-  -ContentType "application/json" `
-  -Body '{"email": "test@example.com", "username": "testuser", "password": "Test1234", "full_name": "Test User"}'
-
-# Login and save token
+# Step 1 - Login and save token
 $response = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/auth/login" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "password": "Test1234"}'
 $token = $response.access_token
-```
 
-#### Test Full Interview Lifecycle
-
-```powershell
-# Step 1 - Create interview
+# Step 2 - Create interview (GPT-4 💰)
 $interview = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/create" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "technical"}'
+  -Body '{"job_role": "Java Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "technical"}'
 $interviewId = $interview.interview_id
 $q1Id = $interview.questions[0].id
+$q2Id = $interview.questions[1].id
+$q3Id = $interview.questions[2].id
 
-# Step 2 - Submit answer (GPT evaluates)
+# Step 3 - Submit all 3 answers (GPT evaluates 💰 x3)
 Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q1Id" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"user_answer": "Your answer here", "time_taken_seconds": 120}'
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 90}'
 
-# Step 3 - Get full results
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q2Id" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 75}'
+
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q3Id" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 100}'
+
+# Step 4 - Get results
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId/results" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 4 - Get score breakdown
+# Step 5 - Get score breakdown (GPT summary 💰)
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId/score?generate_summary=true" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 5 - Complete interview
+# Step 6 - Analyze skill gaps (GPT recommendations 💰)
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/skill-gaps/analyze/$interviewId" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"force_reanalyze": false}'
+
+# Step 7 - Get all user skill gaps
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/skill-gaps/" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Step 8 - Get interview skill gaps
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/skill-gaps/interview/$interviewId" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Step 9 - Complete interview
 Invoke-RestMethod -Method PATCH `
   -Uri "http://localhost:8000/api/interview/$interviewId/complete" `
   -Headers @{Authorization = "Bearer $token"}
@@ -1111,11 +1297,14 @@ Invoke-RestMethod -Method PATCH `
 # Check interviews table
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, overall_score, status FROM interviews;"
 
-# Check questions table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, order_number FROM questions;"
+# Check questions with skill_category
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, skill_category FROM questions;"
 
 # Check responses table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, ai_feedback, answered_at FROM responses;"
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, answered_at FROM responses;"
+
+# Check skill_gaps table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT skill_name, proficiency_level, gap_score FROM skill_gaps ORDER BY gap_score ASC;"
 ```
 
 ---
@@ -1226,6 +1415,15 @@ pip install --upgrade openai
 - Each question can only be answered once
 - Use a different question_id or create a new interview
 
+### skill_category showing job_role name
+- This was a bug fixed on Day 14
+- Create a new interview — old interviews have `skill_category = job_role`
+- New interviews will have specific categories like OOP, Concurrency, etc.
+
+### Skill Gap total_skills = 1 instead of 3
+- Caused by all questions having the same `skill_category`
+- Fixed in `interview_service.py` on Day 14 via `_extract_skill_category()`
+
 ### Circular Import Error
 - Never import services inside model files
 - Models should only import from `app.core.database`
@@ -1234,11 +1432,6 @@ pip install --upgrade openai
 ### Question ID showing "None"
 - Make sure `db.flush()` is called after `db.add(question)`
 - This forces PostgreSQL to assign the UUID immediately
-
-### Pylance Import Warnings in VS Code
-- These are **not real errors** — just VS Code can't resolve paths
-- Code still runs fine
-- Fix: `Ctrl+Shift+P` → Python: Select Interpreter → choose venv
 
 ### Git Push Rejected
 ```powershell
@@ -1294,13 +1487,6 @@ def protected_route(current_user: User = Depends(get_current_active_user)):
 ❌ schemas  → models    (NEVER!)
 ```
 
-### Code Style
-
-- Follow PEP 8
-- Use type hints everywhere
-- Add docstrings to all functions
-- Keep functions focused and small
-
 ---
 
 ## 📊 Progress Tracker
@@ -1322,7 +1508,12 @@ Week 2 - Core Backend APIs & AI Integration
 ✅ Day 11 - PostgreSQL storage + full interview lifecycle
 ✅ Day 12 - Answer submission & AI evaluation
 ✅ Day 13 - Scoring algorithm & feedback
-⬜ Day 14 - Skill gap analysis
+✅ Day 14 - Skill gap analysis + recommendation engine
+
+Week 3 - Coming Up
+⬜ Day 15 - Frontend interview UI
+⬜ Day 16 - Frontend results dashboard
+⬜ Day 17 - Frontend skill gaps dashboard
 ```
 
 ---

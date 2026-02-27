@@ -30,10 +30,11 @@ ai-interview-simulator/
 │   │   │   ├── auth.py              # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
 │   │   │   ├── deps.py              # ✅ Day 7 - JWT middleware
 │   │   │   ├── user.py              # ✅ Day 8 - Profile & Stats
-│   │   │   └── interview.py         # ✅ Day 10 - Create
-│   │   │                            # ✅ Day 11 - List, Detail, Complete
-│   │   │                            # ✅ Day 12 - Answer, Results
-│   │   │                            # ✅ Day 13 - Score breakdown
+│   │   │   ├── interview.py         # ✅ Day 10 - Create
+│   │   │   │                        # ✅ Day 11 - List, Detail, Complete
+│   │   │   │                        # ✅ Day 12 - Answer, Results
+│   │   │   │                        # ✅ Day 13 - Score breakdown
+│   │   │   └── skill_gap.py         # ✅ Day 14 - Analyze, User Gaps, Interview Gaps
 │   │   ├── core/
 │   │   │   ├── config.py            # ✅ Day 9 - Added OpenAI settings
 │   │   │   ├── database.py          # DB connection + get_db dependency
@@ -43,19 +44,22 @@ ai-interview-simulator/
 │   │   │   ├── interview.py         # ✅ Day 4 - Interview, DifficultyLevel, InterviewStatus
 │   │   │   ├── question.py          # ✅ Day 4 - Question, QuestionType
 │   │   │   ├── response.py          # ✅ Day 4 - Response (AI feedback + scores)
-│   │   │   └── skill_gap.py         # ✅ Day 4 - SkillGap
+│   │   │   └── skill_gap.py         # ✅ Day 4 - SkillGap, ProficiencyLevel
 │   │   ├── schemas/
 │   │   │   ├── user.py              # ✅ Day 6 + Day 8 - User schemas
 │   │   │   ├── interview.py         # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
 │   │   │   ├── response.py          # ✅ Day 12 - SubmitAnswer, EvaluationResult, Results
-│   │   │   └── score.py             # ✅ Day 13 - CategoryScore, PerformanceLevel, ScoreResponse
+│   │   │   ├── score.py             # ✅ Day 13 - CategoryScore, PerformanceLevel, ScoreResponse
+│   │   │   └── skill_gap.py         # ✅ Day 14 - SkillGapItem, AnalyzeResponse, UserGapsResponse
 │   │   └── services/
 │   │       ├── __init__.py
 │   │       ├── openai_service.py    # ✅ Day 9  - GPT-4 service wrapper
 │   │       ├── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
+│   │       │                        # ✅ Day 14 - Fixed skill_category extraction
 │   │       ├── evaluation_service.py# ✅ Day 12 - Answer evaluation + results
-│   │       └── scoring_service.py   # ✅ Day 13 - Scoring algorithm + GPT summary
-│   ├── main.py                      # ✅ Day 9 - Added AI test endpoint
+│   │       ├── scoring_service.py   # ✅ Day 13 - Scoring algorithm + GPT summary
+│   │       └── skill_gap_service.py # ✅ Day 14 - Skill gap analyzer + recommendations
+│   ├── main.py                      # ✅ Day 14 - Registered skill_gap router
 │   ├── requirements.txt             # ✅ Day 9 - Added openai>=1.50.0
 │   └── README.md
 ├── frontend/
@@ -103,14 +107,17 @@ ai-interview-simulator/
 | `POST` | `/api/interview/{interview_id}/answer/{question_id}` | Submit answer + AI evaluation | ✅ Day 12 |
 | `GET` | `/api/interview/{interview_id}/results` | Get full interview results | ✅ Day 12 |
 | `GET` | `/api/interview/{interview_id}/score` | Get detailed score breakdown | ✅ Day 13 |
+| `POST` | `/api/skill-gaps/analyze/{interview_id}` | Analyze & save skill gaps | ✅ Day 14 |
+| `GET` | `/api/skill-gaps/` | Get all user skill gaps | ✅ Day 14 |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Get interview skill gaps | ✅ Day 14 |
 
 ### Coming Soon
 
 | Method | Endpoint | Description | Day |
 |--------|----------|-------------|-----|
-| `POST` | `/api/skill-gaps/analyze/{interview_id}` | Analyze & save skill gaps | ⬜ Day 14 |
-| `GET` | `/api/skill-gaps/` | Get all user skill gaps | ⬜ Day 14 |
-| `GET` | `/api/skill-gaps/interview/{interview_id}` | Get interview skill gaps | ⬜ Day 14 |
+| `GET` | `/api/frontend/interview` | Frontend interview UI | ⬜ Day 15 |
+| `GET` | `/api/frontend/results` | Frontend results dashboard | ⬜ Day 16 |
+| `GET` | `/api/frontend/skill-gaps` | Frontend skill gaps dashboard | ⬜ Day 17 |
 
 ---
 
@@ -214,16 +221,18 @@ Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/user/stats" `
   -Headers @{Authorization = "Bearer $token"}
 
-# ── Interview Lifecycle ──────────────���────────────────────────────
+# ── Interview Lifecycle ───────────────────────────────────────────
 
 # Step 1 - Create interview (calls GPT-4 💰)
 $interview = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/create" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "technical"}'
+  -Body '{"job_role": "Java Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "technical"}'
 $interviewId = $interview.interview_id
 $q1Id = $interview.questions[0].id
+$q2Id = $interview.questions[1].id
+$q3Id = $interview.questions[2].id
 
 # Step 2 - List all interviews
 Invoke-RestMethod -Method GET `
@@ -235,12 +244,24 @@ Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 4 - Submit answer (GPT evaluates 💰)
+# Step 4 - Submit all 3 answers (GPT evaluates 💰 x3)
 Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q1Id" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 120}'
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 90}'
+
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q2Id" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 75}'
+
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q3Id" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 100}'
 
 # Step 5 - Get full results
 Invoke-RestMethod -Method GET `
@@ -252,7 +273,24 @@ Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId/score?generate_summary=true" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 7 - Complete interview
+# Step 7 - Analyze skill gaps (GPT recommendations 💰)
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/skill-gaps/analyze/$interviewId" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"force_reanalyze": false}'
+
+# Step 8 - Get all user skill gaps
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/skill-gaps/" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Step 9 - Get interview skill gaps
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/skill-gaps/interview/$interviewId" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Step 10 - Complete interview
 Invoke-RestMethod -Method PATCH `
   -Uri "http://localhost:8000/api/interview/$interviewId/complete" `
   -Headers @{Authorization = "Bearer $token"}
@@ -284,10 +322,13 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, usern
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, overall_score, status FROM interviews;"
 
 # Verify questions table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, order_number FROM questions;"
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, skill_category FROM questions;"
 
 # Verify responses table
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, ai_feedback, answered_at FROM responses;"
+
+# Verify skill_gaps table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT skill_name, proficiency_level, gap_score FROM skill_gaps ORDER BY gap_score ASC;"
 ```
 
 ---
@@ -309,7 +350,10 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, ai_fe
 | Day 11 | PostgreSQL storage + full interview lifecycle | ✅ Done |
 | Day 12 | Answer submission + GPT-4 evaluation + results | ✅ Done |
 | Day 13 | Scoring algorithm + category scores + performance levels | ✅ Done |
-| Day 14 | Skill gap analysis | ⬜ Next |
+| Day 14 | Skill gap analysis + weak area detection + recommendation engine | ✅ Done |
+| Day 15 | Frontend interview UI | ⬜ Next |
+| Day 16 | Frontend results dashboard | ⬜ Upcoming |
+| Day 17 | Frontend skill gaps dashboard | ⬜ Upcoming |
 
 ---
 

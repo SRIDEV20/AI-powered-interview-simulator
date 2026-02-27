@@ -63,6 +63,7 @@ Return a JSON array like this:
     "question"       : "Your question here?",
     "type"           : "technical or behavioral",
     "difficulty"     : "{difficulty}",
+    "skill_category" : "specific skill being tested e.g. Python, Memory Management, Concurrency, Leadership",
     "expected_points": ["key point 1", "key point 2", "key point 3"]
   }}
 ]
@@ -70,6 +71,8 @@ Return a JSON array like this:
 Rules:
 - Generate EXACTLY {num_questions} questions
 - Each question must be specific to {job_role}
+- skill_category must be a SHORT specific skill name (1-3 words), NOT the job title
+- Examples of good skill_category: "Python", "Memory Management", "Concurrency", "SQL", "Leadership", "Communication"
 - expected_points must have 3-5 items
 - Return ONLY the JSON array, nothing else"""
 
@@ -135,6 +138,54 @@ Rules:
         }
         return mapping.get(qtype.lower(), QuestionType.TECHNICAL)
 
+    # ─── Extract skill_category safely ────────────────────────────
+
+    def _extract_skill_category(
+        self,
+        q_data   : dict,
+        job_role : str
+    ) -> str:
+        """
+        Extract skill_category from GPT response.
+        Falls back to job_role only if GPT didn't return one.
+        Prevents job_role from being used as skill_category.
+        """
+        skill = q_data.get("skill_category", "").strip()
+
+        # If GPT returned empty or returned the full job role → fix it
+        if not skill or skill.lower() == job_role.lower():
+            # Try to derive from question text keywords
+            question_text = q_data.get("question", "").lower()
+            if "memory" in question_text:
+                return "Memory Management"
+            elif "thread" in question_text or "concurren" in question_text or "gil" in question_text:
+                return "Concurrency"
+            elif "decorator" in question_text:
+                return "Decorators"
+            elif "generator" in question_text or "comprehension" in question_text:
+                return "Generators"
+            elif "async" in question_text or "await" in question_text:
+                return "Async Programming"
+            elif "database" in question_text or "sql" in question_text:
+                return "Database"
+            elif "api" in question_text or "rest" in question_text:
+                return "APIs"
+            elif "class" in question_text or "object" in question_text or "oop" in question_text:
+                return "OOP"
+            elif "algorithm" in question_text or "complexity" in question_text:
+                return "Algorithms"
+            elif "test" in question_text:
+                return "Testing"
+            elif "leadership" in question_text or "team" in question_text:
+                return "Leadership"
+            elif "communication" in question_text:
+                return "Communication"
+            else:
+                # Last resort - use first word of job role
+                return job_role.split()[0]
+
+        return skill
+
     # ─── Create Interview ──────────────────────────────────────────
 
     def create_interview(
@@ -168,20 +219,27 @@ Rules:
         # ── Create Question records ───────────────────────────────
         question_responses = []
         for idx, q_data in enumerate(questions_data, start=1):
+
+            # ✅ Extract specific skill_category (not job_role!)
+            skill_category = self._extract_skill_category(
+                q_data   = q_data,
+                job_role = request.job_role
+            )
+
             question = Question(
                 interview_id    = interview.id,
                 question_text   = q_data["question"],
                 question_type   = self._map_question_type(q_data.get("type", "technical")),
                 difficulty      = q_data.get("difficulty", request.difficulty.value),
-                skill_category  = request.job_role,
+                skill_category  = skill_category,   # ✅ Fixed!
                 expected_answer = ", ".join(q_data.get("expected_points", [])),
                 order_number    = idx
             )
             db.add(question)
-            db.flush()   # ✅ get question.id immediately after add
+            db.flush()   # get question.id immediately
 
             question_responses.append(QuestionResponse(
-                id              = str(question.id),   # ✅ Now has real UUID
+                id              = str(question.id),
                 question        = q_data["question"],
                 type            = q_data.get("type", "technical"),
                 difficulty      = q_data.get("difficulty", request.difficulty.value),
@@ -227,7 +285,7 @@ Rules:
 
         question_responses = [
             QuestionResponse(
-                id              = str(q.id),          # ✅ Real UUID from DB
+                id              = str(q.id),
                 question        = q.question_text,
                 type            = q.question_type.value,
                 difficulty      = q.difficulty,

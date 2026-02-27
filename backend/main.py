@@ -3,8 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from app.api.auth import router as auth_router
-from app.api.user import router as user_router          # ✅ Day 8
-from app.api.interview import router as interview_router # ✅ Day 10 NEW
+from app.api.user import router as user_router              # ✅ Day 8
+from app.api.interview import router as interview_router    # ✅ Day 10
+from app.api.skill_gap import router as skill_gap_router    # ✅ Day 14 NEW
 from app.core.database import engine, Base
 
 # Create all database tables
@@ -36,8 +37,9 @@ app.add_middleware(
 
 # ─── Include Routers ─────────────────────────────────────────────
 app.include_router(auth_router)
-app.include_router(user_router)                         # ✅ Day 8
-app.include_router(interview_router)                    # ✅ Day 10 NEW
+app.include_router(user_router)                             # ✅ Day 8
+app.include_router(interview_router)                        # ✅ Day 10
+app.include_router(skill_gap_router)                        # ✅ Day 14 NEW
 
 # ─── Root Endpoints ──────────────────────────────────────────────
 
@@ -74,23 +76,29 @@ async def api_info():
     Returns details about the API
     """
     return {
-        "name": "AI Interview Simulator API",
-        "version": "1.0.0",
+        "name"       : "AI Interview Simulator API",
+        "version"    : "1.0.0",
         "description": "Backend API for AI-powered interview simulation and skill gap analysis",
-        "endpoints": {
-            "docs"            : "/api/docs",
-            "redoc"           : "/api/redoc",
-            "health"          : "/api/health",
-            "register"        : "/api/auth/register",
-            "login"           : "/api/auth/login",
-            "me"              : "/api/auth/me",
-            "logout"          : "/api/auth/logout",
-            "profile"         : "/api/user/profile",        # ✅ Day 8
-            "stats"           : "/api/user/stats",          # ✅ Day 8
-            "ai_test"         : "/api/test/ai",             # ✅ Day 9
-            "interview_create": "/api/interview/create",    # ✅ Day 10 NEW
-            "interview_get"   : "/api/interview/{id}",      # ✅ Day 10 NEW
-            "interview_list"  : "/api/interview/"           # ✅ Day 10 NEW
+        "endpoints"  : {
+            "docs"             : "/api/docs",
+            "redoc"            : "/api/redoc",
+            "health"           : "/api/health",
+            "register"         : "/api/auth/register",
+            "login"            : "/api/auth/login",
+            "me"               : "/api/auth/me",
+            "logout"           : "/api/auth/logout",
+            "profile"          : "/api/user/profile",           # ✅ Day 8
+            "stats"            : "/api/user/stats",             # ✅ Day 8
+            "ai_test"          : "/api/test/ai",                # ✅ Day 9
+            "interview_create" : "/api/interview/create",       # ✅ Day 10
+            "interview_list"   : "/api/interview/",             # ✅ Day 11
+            "interview_get"    : "/api/interview/{id}",         # ✅ Day 11
+            "interview_answer" : "/api/interview/{id}/answer/{q_id}", # ✅ Day 12
+            "interview_results": "/api/interview/{id}/results", # ✅ Day 12
+            "interview_score"  : "/api/interview/{id}/score",   # ✅ Day 13
+            "skill_gaps_analyze" : "/api/skill-gaps/analyze/{id}",    # ✅ Day 14
+            "skill_gaps_user"    : "/api/skill-gaps/",                # ✅ Day 14
+            "skill_gaps_interview": "/api/skill-gaps/interview/{id}"  # ✅ Day 14
         }
     }
 
@@ -102,7 +110,6 @@ async def test_ai():
     """
     Test OpenAI GPT-4 connection.
     Verifies API key is working correctly.
-    ⚠️ Temporary endpoint - only for Day 9 testing.
     """
     from app.services.openai_service import openai_service
     result = openai_service.test_connection()
