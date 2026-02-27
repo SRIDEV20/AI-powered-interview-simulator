@@ -27,29 +27,36 @@ ai-interview-simulator/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── auth.py             # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
-│   │   │   ├── deps.py             # ✅ Day 7 - JWT middleware
-│   │   │   ├── user.py             # ✅ Day 8 - Profile & Stats
-│   │   │   └── interview.py        # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │   │   ├── auth.py              # ✅ Day 6 - Register | ✅ Day 7 - Login, Me, Logout
+│   │   │   ├── deps.py              # ✅ Day 7 - JWT middleware
+│   │   │   ├── user.py              # ✅ Day 8 - Profile & Stats
+│   │   │   └── interview.py         # ✅ Day 10 - Create
+│   │   │                            # ✅ Day 11 - List, Detail, Complete
+│   │   │                            # ✅ Day 12 - Answer, Results
+│   │   │                            # ✅ Day 13 - Score breakdown
 │   │   ├── core/
-│   │   │   ├── config.py           # ✅ Day 9 - Added OpenAI settings
-│   │   │   ├── database.py         # DB connection + get_db dependency
-│   │   │   └── security.py         # JWT & bcrypt
+│   │   │   ├── config.py            # ✅ Day 9 - Added OpenAI settings
+│   │   │   ├── database.py          # DB connection + get_db dependency
+│   │   │   └── security.py          # JWT & bcrypt
 │   │   ├── models/
-│   │   │   ├── user.py             # User model
-│   │   │   ├── interview.py        # ✅ Day 4 - Interview, DifficultyLevel, InterviewStatus
-│   │   │   ├── question.py         # ✅ Day 4 - Question, QuestionType
-│   │   │   ├── response.py         # ✅ Day 4 - Response (AI feedback)
-│   │   │   └── skill_gap.py        # ✅ Day 4 - SkillGap
+│   │   │   ├── user.py              # User model
+│   │   │   ├── interview.py         # ✅ Day 4 - Interview, DifficultyLevel, InterviewStatus
+│   │   │   ├── question.py          # ✅ Day 4 - Question, QuestionType
+│   │   │   ├── response.py          # ✅ Day 4 - Response (AI feedback + scores)
+│   │   │   └── skill_gap.py         # ✅ Day 4 - SkillGap
 │   │   ├── schemas/
-│   │   │   ├── user.py             # ✅ Day 6 + Day 8 - User schemas
-│   │   │   └── interview.py        # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │   │   ├── user.py              # ✅ Day 6 + Day 8 - User schemas
+│   │   │   ├── interview.py         # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │   │   ├── response.py          # ✅ Day 12 - SubmitAnswer, EvaluationResult, Results
+│   │   │   └── score.py             # ✅ Day 13 - CategoryScore, PerformanceLevel, ScoreResponse
 │   │   └── services/
 │   │       ├── __init__.py
-│   │       ├── openai_service.py   # ✅ Day 9 - GPT-4 service wrapper
-│   │       └── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
-│   ├── main.py                     # ✅ Day 9 - Added AI test endpoint
-│   ├── requirements.txt            # ✅ Day 9 - Added openai>=1.50.0
+│   │       ├── openai_service.py    # ✅ Day 9  - GPT-4 service wrapper
+│   │       ├── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
+│   │       ├── evaluation_service.py# ✅ Day 12 - Answer evaluation + results
+│   │       └── scoring_service.py   # ✅ Day 13 - Scoring algorithm + GPT summary
+│   ├── main.py                      # ✅ Day 9 - Added AI test endpoint
+│   ├── requirements.txt             # ✅ Day 9 - Added openai>=1.50.0
 │   └── README.md
 ├── frontend/
 │   ├── src/
@@ -93,14 +100,17 @@ ai-interview-simulator/
 | `GET` | `/api/interview/` | List all my interviews | ✅ Day 11 |
 | `GET` | `/api/interview/{interview_id}` | Get interview detail + questions | ✅ Day 11 |
 | `PATCH` | `/api/interview/{interview_id}/complete` | Mark interview as completed | ✅ Day 11 |
+| `POST` | `/api/interview/{interview_id}/answer/{question_id}` | Submit answer + AI evaluation | ✅ Day 12 |
+| `GET` | `/api/interview/{interview_id}/results` | Get full interview results | ✅ Day 12 |
+| `GET` | `/api/interview/{interview_id}/score` | Get detailed score breakdown | ✅ Day 13 |
 
 ### Coming Soon
 
 | Method | Endpoint | Description | Day |
 |--------|----------|-------------|-----|
-| `POST` | `/api/interview/{id}/answer` | Submit answer for AI evaluation | ⬜ Day 12 |
-| `GET` | `/api/interview/{id}/results` | Get full interview results | ⬜ Day 13 |
-| `GET` | `/api/skill-gaps/` | Get user skill gaps | ⬜ Day 14 |
+| `POST` | `/api/skill-gaps/analyze/{interview_id}` | Analyze & save skill gaps | ⬜ Day 14 |
+| `GET` | `/api/skill-gaps/` | Get all user skill gaps | ⬜ Day 14 |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Get interview skill gaps | ⬜ Day 14 |
 
 ---
 
@@ -204,27 +214,45 @@ Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/user/stats" `
   -Headers @{Authorization = "Bearer $token"}
 
-# ── Interview Lifecycle ───────────────────────────────────────────
+# ── Interview Lifecycle ──────────────���────────────────────────────
 
-# Create interview (calls GPT-4)
+# Step 1 - Create interview (calls GPT-4 💰)
 $interview = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/create" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "mixed"}'
+  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "technical"}'
 $interviewId = $interview.interview_id
+$q1Id = $interview.questions[0].id
 
-# List all interviews
+# Step 2 - List all interviews
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Get interview detail
+# Step 3 - Get interview detail
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Complete interview
+# Step 4 - Submit answer (GPT evaluates 💰)
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q1Id" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 120}'
+
+# Step 5 - Get full results
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/interview/$interviewId/results" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Step 6 - Get score breakdown (GPT summary 💰)
+Invoke-RestMethod -Method GET `
+  -Uri "http://localhost:8000/api/interview/$interviewId/score?generate_summary=true" `
+  -Headers @{Authorization = "Bearer $token"}
+
+# Step 7 - Complete interview
 Invoke-RestMethod -Method PATCH `
   -Uri "http://localhost:8000/api/interview/$interviewId/complete" `
   -Headers @{Authorization = "Bearer $token"}
@@ -253,14 +281,37 @@ CREATE DATABASE ai_interview_db;
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username, is_active, created_at FROM users;"
 
 # Verify interviews table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, status, started_at, completed_at FROM interviews;"
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, overall_score, status FROM interviews;"
 
 # Verify questions table
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, order_number FROM questions;"
+
+# Verify responses table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, ai_feedback, answered_at FROM responses;"
 ```
 
+---
 
+## 🗺️ Progress
 
+| Day | What Was Built | Status |
+|-----|---------------|--------|
+| Day 1 | Project setup & GitHub | ✅ Done |
+| Day 2 | Database schema & API design | ✅ Done |
+| Day 3 | FastAPI initialization | ✅ Done |
+| Day 4 | PostgreSQL database + ORM models | ✅ Done |
+| Day 5 | Next.js frontend + landing page | ✅ Done |
+| Day 6 | User registration API + bcrypt + Pydantic | ✅ Done |
+| Day 7 | Login API + JWT tokens + Protected routes | ✅ Done |
+| Day 8 | User profile endpoints + dashboard stats | ✅ Done |
+| Day 9 | OpenAI GPT-4 integration + service wrapper | ✅ Done |
+| Day 10 | Question generation + interview create endpoint | ✅ Done |
+| Day 11 | PostgreSQL storage + full interview lifecycle | ✅ Done |
+| Day 12 | Answer submission + GPT-4 evaluation + results | ✅ Done |
+| Day 13 | Scoring algorithm + category scores + performance levels | ✅ Done |
+| Day 14 | Skill gap analysis | ⬜ Next |
+
+---
 
 ## 👤 Author
 

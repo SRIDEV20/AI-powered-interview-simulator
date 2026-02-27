@@ -24,6 +24,7 @@ backend/
 │   │   ├── deps.py           # ✅ Day 7 - Auth middleware (JWT protection)
 │   │   ├── user.py           # ✅ Day 8 - Profile & Stats endpoints
 │   │   └── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │                         # ✅ Day 12 - Answer, Results | ✅ Day 13 - Score
 │   ├── core/                 # Configuration & database
 │   │   ├── config.py         # ✅ Day 9 - Added OpenAI settings
 │   │   ├── database.py       # Database connection + get_db dependency
@@ -36,12 +37,16 @@ backend/
 │   │   └── skill_gap.py      # ✅ Day 4 - SkillGap
 │   ├── schemas/              # Pydantic schemas
 │   │   ├── __init__.py
-│   │   ├── user.py           # ✅ Day 8 - Added UserProfileUpdate, UserStatsResponse
-│   │   └── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │   ├── user.py           # ✅ Day 8 - UserProfileUpdate, UserStatsResponse
+│   │   ├── interview.py      # ✅ Day 10 - Create | ✅ Day 11 - List, Detail, Complete
+│   │   ├── response.py       # ✅ Day 12 - SubmitAnswer, EvaluationResult, Results
+│   │   └── score.py          # ✅ Day 13 - CategoryScore, PerformanceLevel, ScoreResponse
 │   └── services/             # Business logic
 │       ├── __init__.py
-│       ├── openai_service.py # ✅ Day 9 - GPT-4 service wrapper
-│       └── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
+│       ├── openai_service.py    # ✅ Day 9  - GPT-4 service wrapper
+│       ├── interview_service.py # ✅ Day 10 - Generate | ✅ Day 11 - PostgreSQL storage
+│       ├── evaluation_service.py# ✅ Day 12 - Answer evaluation + results
+│       └── scoring_service.py   # ✅ Day 13 - Scoring algorithm + GPT summary
 ├── alembic/                  # Database migrations
 │   ├── versions/             # Migration files
 │   └── env.py                # Alembic configuration
@@ -95,7 +100,7 @@ questions (1) → (1) response
 | `job_role` | String(100) | e.g. Python Developer |
 | `difficulty_level` | Enum | beginner / intermediate / advanced |
 | `status` | Enum | in_progress / completed / abandoned |
-| `overall_score` | DECIMAL(5,2) | 0-100 (null until evaluated) |
+| `overall_score` | DECIMAL(5,2) | 0-100 (auto-calculated from responses) |
 | `started_at` | DateTime | Auto timestamp |
 | `completed_at` | DateTime | Set when completed |
 | `duration_minutes` | Integer | Interview duration |
@@ -113,6 +118,20 @@ questions (1) → (1) response
 | `expected_answer` | Text | Key points for AI comparison |
 | `order_number` | Integer | Question order in interview |
 | `created_at` | DateTime | Auto timestamp |
+
+### Response Model (`responses` table)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key (auto-generated) |
+| `question_id` | UUID | Foreign key → questions.id (unique) |
+| `user_answer` | Text | Candidate's submitted answer |
+| `ai_feedback` | Text | GPT-4 generated feedback |
+| `score` | DECIMAL(5,2) | 0-100 AI score |
+| `strengths` | Text | JSON array of strengths |
+| `weaknesses` | Text | JSON array of improvements |
+| `answered_at` | DateTime | Auto timestamp |
+| `time_taken_seconds` | Integer | Time taken to answer |
 
 ## ⚙️ Setup Instructions
 
@@ -164,7 +183,6 @@ pip install "pydantic[email]"
 
 **Connect to PostgreSQL:**
 ```powershell
-# Windows
 D:\postgress\bin\psql -U postgres
 ```
 
@@ -278,20 +296,17 @@ Once the server is running, access interactive documentation:
 | `GET` | `/api/interview/` | List all my interviews | ✅ Done - Day 11 |
 | `GET` | `/api/interview/{interview_id}` | Get interview detail + questions | ✅ Done - Day 11 |
 | `PATCH` | `/api/interview/{interview_id}/complete` | Mark interview as completed | ✅ Done - Day 11 |
-
-### Answers & Evaluation (Coming Soon)
-
-| Method | Endpoint | Description | Status |
-|--------|----------|-------------|--------|
-| `POST` | `/api/interview/{id}/answer` | Submit answer for evaluation | ⬜ Day 12 |
-| `GET` | `/api/interview/{id}/results` | Get full interview results | ⬜ Day 13 |
+| `POST` | `/api/interview/{interview_id}/answer/{question_id}` | Submit answer + AI evaluation | ✅ Done - Day 12 |
+| `GET` | `/api/interview/{interview_id}/results` | Get full interview results | ✅ Done - Day 12 |
+| `GET` | `/api/interview/{interview_id}/score` | Get detailed score breakdown | ✅ Done - Day 13 |
 
 ### Skill Gaps (Coming Soon)
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
-| `GET` | `/api/skill-gaps/user/{user_id}` | Get user's skill gaps | ⬜ Day 14 |
-| `GET` | `/api/skill-gaps/interview/{interview_id}` | Interview skill gaps | ⬜ Day 14 |
+| `POST` | `/api/skill-gaps/analyze/{interview_id}` | Analyze & save skill gaps | ⬜ Day 14 |
+| `GET` | `/api/skill-gaps/` | Get all user skill gaps | ⬜ Day 14 |
+| `GET` | `/api/skill-gaps/interview/{interview_id}` | Get interview skill gaps | ⬜ Day 14 |
 
 ---
 
@@ -494,7 +509,7 @@ Authorization: Bearer <your_token>
 ```json
 {
   "status": "connected",
-  "model": "gpt-4",
+  "model": "gpt-3.5-turbo",
   "response": "OpenAI connection successful!"
 }
 ```
@@ -503,7 +518,7 @@ Authorization: Bearer <your_token>
 ```json
 {
   "status": "failed",
-  "model": "gpt-4",
+  "model": "gpt-3.5-turbo",
   "error": "Incorrect API key provided"
 }
 ```
@@ -663,6 +678,206 @@ Authorization: Bearer <your_token>
 
 ---
 
+## 📝 Answer Submission & Evaluation - Day 12
+
+### Submit Answer - `POST /api/interview/{interview_id}/answer/{question_id}` ✅ Day 12
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Request Body:**
+```json
+{
+  "user_answer": "A list comprehension returns a full list stored in memory, while a generator expression returns a lazy iterator that yields items one at a time. Generators are more memory efficient for large datasets.",
+  "time_taken_seconds": 120
+}
+```
+
+**Field Rules:**
+
+| Field | Rules |
+|-------|-------|
+| `user_answer` | Required, 1-5000 characters |
+| `time_taken_seconds` | Optional, must be >= 0 |
+
+**Success Response (201 Created):**
+```json
+{
+  "response_id": "44b32da7-237d-4547-8d33-3cd95c891a78",
+  "interview_id": "f569d79e-baff-4ac7-b03f-46b9190d5857",
+  "question_id": "d9a87d4f-3257-4d4c-8896-a782d987565f",
+  "question_text": "Explain the difference between list comprehension and generator expression in Python.",
+  "user_answer": "A list comprehension returns a full list...",
+  "score": 85,
+  "feedback": "The candidate provided a clear and accurate explanation...",
+  "strengths": [
+    "Clear explanation",
+    "Memory efficiency understanding"
+  ],
+  "improvements": [
+    "Could provide more examples",
+    "Could elaborate on lazy evaluation benefits"
+  ],
+  "keywords_mentioned": [
+    "list comprehension",
+    "generator expression",
+    "memory efficiency",
+    "lazy evaluation"
+  ],
+  "time_taken_seconds": 120,
+  "answered_at": "2026-02-25T17:01:14.263734"
+}
+```
+
+**How GPT-4 Scores (0-100):**
+
+| Criteria | Weight |
+|----------|--------|
+| Accuracy and correctness | 40% |
+| Coverage of key points | 30% |
+| Clarity and communication | 20% |
+| Depth of knowledge | 10% |
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `404` | Question not found in interview |
+| `404` | Question already answered |
+| `401` | Not authenticated |
+
+---
+
+### Get Interview Results - `GET /api/interview/{interview_id}/results` ✅ Day 12
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "interview_id": "f569d79e-baff-4ac7-b03f-46b9190d5857",
+  "job_role": "Python Developer",
+  "difficulty": "intermediate",
+  "status": "in_progress",
+  "overall_score": 51.67,
+  "total_questions": 3,
+  "answered": 3,
+  "responses": [
+    {
+      "response_id": "44b32da7-...",
+      "question_id": "d9a87d4f-...",
+      "question_text": "Explain the difference between list comprehension...",
+      "question_type": "technical",
+      "order_number": 1,
+      "user_answer": "A list comprehension returns a full list...",
+      "score": 85,
+      "feedback": "The candidate provided a clear and accurate explanation...",
+      "strengths": ["Clear explanation", "Memory efficiency understanding"],
+      "improvements": ["Could provide more examples"],
+      "time_taken_seconds": 120,
+      "answered_at": "2026-02-25T17:01:14.263734"
+    }
+  ],
+  "created_at": "2026-02-25T16:59:07.029162",
+  "completed_at": null
+}
+```
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `401` | Not authenticated |
+
+---
+
+## 📊 Scoring & Feedback - Day 13
+
+### Get Interview Score - `GET /api/interview/{interview_id}/score` ✅ Day 13
+
+**Headers Required:**
+```
+Authorization: Bearer <your_token>
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `generate_summary` | bool | true | Set to false to skip GPT summary (saves API cost) |
+
+**Success Response (200 OK):**
+```json
+{
+  "interview_id": "f569d79e-baff-4ac7-b03f-46b9190d5857",
+  "job_role": "Python Developer",
+  "difficulty": "intermediate",
+  "status": "in_progress",
+  "overall_score": 51.67,
+  "performance": {
+    "level": "average",
+    "label": "Average 📈",
+    "message": "Average performance. Focus on the improvement areas to boost your score.",
+    "color": "yellow"
+  },
+  "total_questions": 3,
+  "answered": 3,
+  "skipped": 0,
+  "completion_rate": 100.0,
+  "category_scores": [
+    {
+      "category": "technical",
+      "average_score": 51.67,
+      "total_questions": 3,
+      "answered": 3
+    }
+  ],
+  "question_scores": [
+    {
+      "question_id": "d9a87d4f-...",
+      "question_text": "Explain the difference between list comprehension...",
+      "question_type": "technical",
+      "order_number": 1,
+      "score": 85,
+      "feedback": "Clear and accurate explanation...",
+      "strengths": ["Clear explanation", "Memory efficiency understanding"],
+      "improvements": ["Could provide more examples"],
+      "answered": true
+    }
+  ],
+  "overall_summary": "GPT-4 generated interview summary...",
+  "top_strengths": ["strength 1", "strength 2"],
+  "top_improvements": ["improvement 1", "improvement 2"],
+  "started_at": "2026-02-25T16:59:07.029162",
+  "completed_at": null
+}
+```
+
+**Performance Levels:**
+
+| Score Range | Level | Label | Color |
+|-------------|-------|-------|-------|
+| 85 - 100 | excellent | Excellent! 🌟 | green |
+| 70 - 84 | good | Good 👍 | blue |
+| 50 - 69 | average | Average 📈 | yellow |
+| 0 - 49 | poor | Needs Work 💪 | red |
+
+**Error Responses:**
+
+| Status | Detail |
+|--------|--------|
+| `404` | Interview not found |
+| `401` | Not authenticated |
+
+---
+
 ### Security Notes
 - Passwords are hashed with **bcrypt** before storing
 - Passwords are **never stored in plain text**
@@ -716,6 +931,25 @@ Authorization: Bearer <your_token>
 | `InterviewListResponse` | Day 11 | Shape list all interviews response |
 | `InterviewCompleteResponse` | Day 11 | Shape complete interview response |
 
+### `app/schemas/response.py` ✅ Day 12
+
+| Schema | Day | Usage |
+|--------|-----|-------|
+| `SubmitAnswerRequest` | Day 12 | Validate answer submission body |
+| `EvaluationResult` | Day 12 | Shape GPT-4 evaluation result |
+| `SubmitAnswerResponse` | Day 12 | Shape answer submission response |
+| `ResponseDetail` | Day 12 | Shape single response detail |
+| `InterviewResultsResponse` | Day 12 | Shape full interview results |
+
+### `app/schemas/score.py` ✅ Day 13
+
+| Schema | Day | Usage |
+|--------|-----|-------|
+| `CategoryScore` | Day 13 | Score breakdown per question type |
+| `QuestionScoreDetail` | Day 13 | Per-question score with feedback |
+| `PerformanceLevel` | Day 13 | Level label + message + color |
+| `InterviewScoreResponse` | Day 13 | Full score breakdown response |
+
 ### `app/api/user.py` ✅ Day 8
 
 | Function | Description |
@@ -724,14 +958,17 @@ Authorization: Bearer <your_token>
 | `update_profile()` | Updates full_name and/or username |
 | `get_stats()` | Returns dashboard statistics |
 
-### `app/api/interview.py` ✅ Day 10 + Day 11
+### `app/api/interview.py` ✅ Day 10 → Day 13
 
-| Function | Description |
-|----------|-------------|
-| `create_interview()` | Creates interview + generates GPT questions |
-| `list_interviews()` | Returns all interviews for current user |
-| `get_interview()` | Returns interview detail with all questions |
-| `complete_interview()` | Marks interview as completed |
+| Function | Day | Description |
+|----------|-----|-------------|
+| `create_interview()` | Day 10 | Creates interview + generates GPT questions |
+| `list_interviews()` | Day 11 | Returns all interviews for current user |
+| `get_interview()` | Day 11 | Returns interview detail with all questions |
+| `complete_interview()` | Day 11 | Marks interview as completed |
+| `submit_answer()` | Day 12 | Submits answer + GPT-4 evaluation |
+| `get_interview_results()` | Day 12 | Returns all Q&A + scores + feedback |
+| `get_interview_score()` | Day 13 | Returns full score breakdown + summary |
 
 ### `app/services/openai_service.py` ✅ Day 9
 
@@ -755,6 +992,25 @@ Authorization: Bearer <your_token>
 | `get_interview()` | Fetch interview + questions from PostgreSQL |
 | `get_user_interviews()` | Fetch all interviews for a user from PostgreSQL |
 | `complete_interview()` | Update interview status to COMPLETED in PostgreSQL |
+
+### `app/services/evaluation_service.py` ✅ Day 12
+
+| Function | Description |
+|----------|-------------|
+| `_build_evaluation_prompt()` | Build GPT prompt with scoring criteria |
+| `_parse_evaluation()` | Clean and parse GPT JSON response |
+| `submit_answer()` | Validate → evaluate with GPT-4 → save to PostgreSQL |
+| `_update_interview_score()` | Recalculate interview average score |
+| `get_interview_results()` | Fetch all Q&A + responses from PostgreSQL |
+
+### `app/services/scoring_service.py` ✅ Day 13
+
+| Function | Description |
+|----------|-------------|
+| `_get_performance_level()` | Map score to Excellent/Good/Average/Poor |
+| `_calculate_category_scores()` | Average scores per question type category |
+| `_generate_summary()` | GPT-4 overall interview summary + top strengths |
+| `get_interview_score()` | Full score breakdown → update DB → return response |
 
 ---
 
@@ -798,60 +1054,52 @@ Open browser and go to: **http://localhost:8000/api/docs**
 
 ### Option 2 - PowerShell
 
-#### Test Registration
+#### Test Registration & Login
 
 ```powershell
-# ✅ Test 1 - Successful registration
+# Register
 Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "username": "testuser", "password": "Test1234", "full_name": "Test User"}'
-```
 
-#### Test Login & Protected Routes
-
-```powershell
-# ✅ Login and save token automatically
+# Login and save token
 $response = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/auth/login" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "password": "Test1234"}'
 $token = $response.access_token
-
-# ✅ Get current user
-Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/auth/me" `
-  -Headers @{Authorization = "Bearer $token"}
 ```
 
-#### Test Interview Lifecycle
+#### Test Full Interview Lifecycle
 
 ```powershell
-# ✅ Login first
-$response = Invoke-RestMethod -Method POST `
-  -Uri "http://localhost:8000/api/auth/login" `
-  -ContentType "application/json" `
-  -Body '{"email": "test@example.com", "password": "Test1234"}'
-$token = $response.access_token
-
-# ✅ Create interview
+# Step 1 - Create interview
 $interview = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/create" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
-  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "mixed"}'
+  -Body '{"job_role": "Python Developer", "difficulty": "intermediate", "num_questions": 3, "question_type": "technical"}'
 $interviewId = $interview.interview_id
+$q1Id = $interview.questions[0].id
 
-# ✅ List all interviews
+# Step 2 - Submit answer (GPT evaluates)
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q1Id" `
+  -ContentType "application/json" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body '{"user_answer": "Your answer here", "time_taken_seconds": 120}'
+
+# Step 3 - Get full results
 Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/interview/" `
+  -Uri "http://localhost:8000/api/interview/$interviewId/results" `
   -Headers @{Authorization = "Bearer $token"}
 
-# ✅ Get interview detail
+# Step 4 - Get score breakdown
 Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/interview/$interviewId" `
+  -Uri "http://localhost:8000/api/interview/$interviewId/score?generate_summary=true" `
   -Headers @{Authorization = "Bearer $token"}
 
-# ✅ Complete interview
+# Step 5 - Complete interview
 Invoke-RestMethod -Method PATCH `
   -Uri "http://localhost:8000/api/interview/$interviewId/complete" `
   -Headers @{Authorization = "Bearer $token"}
@@ -860,11 +1108,14 @@ Invoke-RestMethod -Method PATCH `
 #### Verify in Database
 
 ```powershell
-# ✅ Check interviews table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, status, started_at, completed_at FROM interviews;"
+# Check interviews table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, overall_score, status FROM interviews;"
 
-# ✅ Check questions table
+# Check questions table
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, order_number FROM questions;"
+
+# Check responses table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, ai_feedback, answered_at FROM responses;"
 ```
 
 ---
@@ -924,6 +1175,15 @@ pip install "pydantic[email]"
 pip install "pydantic[email]"
 ```
 
+### Wrong Virtual Environment (SQLAlchemy AssertionError)
+```powershell
+# Always use backend/venv NOT root/.venv
+deactivate
+cd D:\ai-interview-simulator\backend
+.\venv\Scripts\Activate.ps1
+python main.py
+```
+
 ### psql command not found
 ```powershell
 $env:PATH += ";D:\postgress\bin"
@@ -961,6 +1221,10 @@ taskkill /PID <PID> /F
 ```powershell
 pip install --upgrade openai
 ```
+
+### Question already answered (404)
+- Each question can only be answered once
+- Use a different question_id or create a new interview
 
 ### Circular Import Error
 - Never import services inside model files
@@ -1056,8 +1320,8 @@ Week 2 - Core Backend APIs & AI Integration
 ✅ Day 9  - OpenAI GPT-4 integration
 ✅ Day 10 - Question generation + interview create
 ✅ Day 11 - PostgreSQL storage + full interview lifecycle
-⬜ Day 12 - Answer submission & AI evaluation
-⬜ Day 13 - Scoring algorithm & feedback
+✅ Day 12 - Answer submission & AI evaluation
+✅ Day 13 - Scoring algorithm & feedback
 ⬜ Day 14 - Skill gap analysis
 ```
 

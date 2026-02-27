@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.schemas.interview import (
@@ -13,8 +13,10 @@ from app.schemas.response import (
     SubmitAnswerResponse,
     InterviewResultsResponse
 )
+from app.schemas.score import InterviewScoreResponse
 from app.services.interview_service import interview_service
 from app.services.evaluation_service import evaluation_service
+from app.services.scoring_service import scoring_service
 from app.api.deps import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
@@ -27,7 +29,7 @@ router = APIRouter(
 )
 
 
-# ─── Create Interview ───────────────────────────────────��─────────
+# ─── Create Interview ─────────────────────────────────────────────
 
 @router.post(
     "/create",
@@ -159,7 +161,7 @@ async def submit_answer(
         )
 
 
-# ─── Get Interview Results ─────────────────────────────────────────
+# ─── Get Interview Results ────────────────────────────────────────
 
 @router.get(
     "/{interview_id}/results",
@@ -188,6 +190,44 @@ async def get_interview_results(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get results: {str(e)}"
+        )
+
+
+# ─── Get Interview Score ──────────────────────────────────────────
+
+@router.get(
+    "/{interview_id}/score",
+    response_model=InterviewScoreResponse,
+    summary="Get detailed score breakdown",
+    description="Returns category-wise scores, performance level and GPT-4 summary"
+)
+async def get_interview_score(
+    interview_id     : str,
+    generate_summary : bool = Query(
+        default=True,
+        description="Set to false to skip GPT summary (saves API cost)"
+    ),
+    current_user     : User = Depends(get_current_active_user),
+    db               : Session = Depends(get_db)
+):
+    try:
+        logger.info(f"📊 Scoring interview {interview_id}")
+        result = scoring_service.get_interview_score(
+            interview_id     = interview_id,
+            db               = db,
+            generate_summary = generate_summary
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"❌ Scoring failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to calculate score: {str(e)}"
         )
 
 
