@@ -2,30 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import styles from "./page.module.css";
 
 interface FormData {
-  email   : string;
-  password: string;
+  email    : string;
+  password : string;
 }
 
 interface FormErrors {
-  email?   : string;
-  password?: string;
-  general? : string;
+  email?    : string;
+  password? : string;
+  general?  : string;
 }
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState<FormData>({
-    email   : "",
-    password: "",
-  });
+  const { login, isAuth } = useAuth();
+  const router = useRouter();
 
-  const [errors,    setErrors]    = useState<FormErrors>({});
-  const [loading,   setLoading]   = useState(false);
-  const [showPass,  setShowPass]  = useState(false);
+  const [formData, setFormData] = useState<FormData>({ email: "", password: "" });
+  const [errors,   setErrors]   = useState<FormErrors>({});
+  const [loading,  setLoading]  = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
-  // ── Validation ─────────────────────────────────────���────────────
+  // Redirect if already logged in
+  if (isAuth) {
+    router.replace("/dashboard");
+    return null;
+  }
+
+  // ── Validation ────────────────────────────────────────────────────
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -45,12 +52,10 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ── Handle Change ────────────────────────────────────────────────
+  // ── Handle Change ─────────────────────────────────────────────────
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-
-    // Clear error on change
     if (errors[name as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
@@ -65,15 +70,11 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      // ── Day 16: will connect to API here ──
-      console.log("Login:", formData);
-
-      // Simulate loading for now
-      await new Promise(r => setTimeout(r, 1000));
-
-      alert("✅ Day 16 will connect this to the real API!");
-    } catch {
-      setErrors({ general: "Something went wrong. Please try again." });
+      await login({ email: formData.email, password: formData.password });
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Login failed";
+      setErrors({ general: message });
     } finally {
       setLoading(false);
     }
@@ -82,32 +83,26 @@ export default function LoginPage() {
   // ─────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
-
-      {/* ── Card ── */}
       <div className={styles.card}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className={styles.cardHeader}>
           <div className={styles.logo}>🤖</div>
           <h1 className={styles.title}>Welcome Back</h1>
           <p className={styles.subtitle}>Sign in to continue your interview practice</p>
         </div>
 
-        {/* ── General Error ── */}
+        {/* General Error */}
         {errors.general && (
-          <div className={styles.alertError}>
-            ⚠️ {errors.general}
-          </div>
+          <div className={styles.alertError}>⚠️ {errors.general}</div>
         )}
 
-        {/* ── Form ── */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className={styles.form} noValidate>
 
           {/* Email */}
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="email">
-              Email Address
-            </label>
+            <label className={styles.label} htmlFor="email">Email Address</label>
             <input
               id          = "email"
               name        = "email"
@@ -118,16 +113,12 @@ export default function LoginPage() {
               placeholder = "you@example.com"
               className   = {`${styles.input} ${errors.email ? styles.inputError : ""}`}
             />
-            {errors.email && (
-              <span className={styles.errorMsg}>⚠ {errors.email}</span>
-            )}
+            {errors.email && <span className={styles.errorMsg}>⚠ {errors.email}</span>}
           </div>
 
           {/* Password */}
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="password">
-              Password
-            </label>
+            <label className={styles.label} htmlFor="password">Password</label>
             <div className={styles.inputWrapper}>
               <input
                 id          = "password"
@@ -148,9 +139,7 @@ export default function LoginPage() {
                 {showPass ? "🙈" : "👁️"}
               </button>
             </div>
-            {errors.password && (
-              <span className={styles.errorMsg}>⚠ {errors.password}</span>
-            )}
+            {errors.password && <span className={styles.errorMsg}>⚠ {errors.password}</span>}
           </div>
 
           {/* Submit */}
@@ -164,19 +153,15 @@ export default function LoginPage() {
                 <span className={styles.spinner} />
                 Signing in...
               </span>
-            ) : (
-              "Sign In →"
-            )}
+            ) : "Sign In →"}
           </button>
 
         </form>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <p className={styles.footerText}>
           Don&apos;t have an account?{" "}
-          <Link href="/register" className={styles.link}>
-            Create one free
-          </Link>
+          <Link href="/register" className={styles.link}>Create one free</Link>
         </p>
 
       </div>

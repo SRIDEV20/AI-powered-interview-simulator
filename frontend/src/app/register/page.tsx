@@ -2,32 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import styles from "./page.module.css";
 
 interface FormData {
-  full_name: string;
-  email    : string;
-  username : string;
-  password : string;
-  confirm  : string;
+  full_name : string;
+  email     : string;
+  username  : string;
+  password  : string;
+  confirm   : string;
 }
 
 interface FormErrors {
-  full_name?: string;
-  email?    : string;
-  username? : string;
-  password? : string;
-  confirm?  : string;
-  general?  : string;
+  full_name? : string;
+  email?     : string;
+  username?  : string;
+  password?  : string;
+  confirm?   : string;
+  general?   : string;
 }
 
 export default function RegisterPage() {
+  const { register, isAuth } = useAuth();
+  const router = useRouter();
+
   const [formData, setFormData] = useState<FormData>({
-    full_name: "",
-    email    : "",
-    username : "",
-    password : "",
-    confirm  : "",
+    full_name : "",
+    email     : "",
+    username  : "",
+    password  : "",
+    confirm   : "",
   });
 
   const [errors,   setErrors]   = useState<FormErrors>({});
@@ -35,7 +40,13 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false);
   const [success,  setSuccess]  = useState(false);
 
-  // ── Validation ────────────────────────────────────────────────
+  // Redirect if already logged in
+  if (isAuth) {
+    router.replace("/dashboard");
+    return null;
+  }
+
+  // ── Validation ────────────────────────────────────────────────────
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -64,9 +75,9 @@ export default function RegisterPage() {
     } else if (formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
     } else if (!/[A-Z]/.test(formData.password)) {
-      newErrors.password = "Password must contain at least one uppercase letter";
+      newErrors.password = "Must contain at least one uppercase letter";
     } else if (!/[0-9]/.test(formData.password)) {
-      newErrors.password = "Password must contain at least one number";
+      newErrors.password = "Must contain at least one number";
     }
 
     if (!formData.confirm) {
@@ -79,26 +90,24 @@ export default function RegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ── Password Strength ─────────────────────────────────────────
-  const getPasswordStrength = (): { label: string; color: string; width: string } => {
+  // ── Password Strength ─────────────────────────────────────────────
+  const getStrength = () => {
     const p = formData.password;
     if (!p) return { label: "", color: "transparent", width: "0%" };
-
     let score = 0;
-    if (p.length >= 8)         score++;
-    if (/[A-Z]/.test(p))       score++;
-    if (/[0-9]/.test(p))       score++;
+    if (p.length >= 8)          score++;
+    if (/[A-Z]/.test(p))        score++;
+    if (/[0-9]/.test(p))        score++;
     if (/[^A-Za-z0-9]/.test(p)) score++;
-
-    if (score <= 1) return { label: "Weak",   color: "#ef4444", width: "25%" };
-    if (score === 2) return { label: "Fair",   color: "#f97316", width: "50%" };
-    if (score === 3) return { label: "Good",   color: "#eab308", width: "75%" };
+    if (score <= 1) return { label: "Weak",   color: "#ef4444", width: "25%"  };
+    if (score === 2) return { label: "Fair",   color: "#f97316", width: "50%"  };
+    if (score === 3) return { label: "Good",   color: "#eab308", width: "75%"  };
     return               { label: "Strong", color: "#22c55e", width: "100%" };
   };
 
-  const strength = getPasswordStrength();
+  const strength = getStrength();
 
-  // ── Handle Change ─────────────────────────────────────────────
+  // ── Handle Change ─────────────────────────────────────────────────
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -107,7 +116,7 @@ export default function RegisterPage() {
     }
   };
 
-  // ── Handle Submit ─────────────────────────────────────────────
+  // ── Handle Submit ─────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
@@ -116,19 +125,22 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
-      // ── Day 16: will connect to API here ──
-      console.log("Register:", formData);
-
-      await new Promise(r => setTimeout(r, 1200));
+      await register({
+        full_name : formData.full_name,
+        email     : formData.email,
+        username  : formData.username,
+        password  : formData.password,
+      });
       setSuccess(true);
-    } catch {
-      setErrors({ general: "Something went wrong. Please try again." });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Registration failed";
+      setErrors({ general: message });
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Success State ─────────────────────────────────────────────
+  // ── Success State ─────────────────────────────────────────────────
   if (success) {
     return (
       <div className={styles.page}>
@@ -149,26 +161,24 @@ export default function RegisterPage() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
-
-      {/* ── Card ── */}
       <div className={styles.card}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className={styles.cardHeader}>
           <div className={styles.logo}>🤖</div>
           <h1 className={styles.title}>Create Account</h1>
           <p className={styles.subtitle}>Start practicing interviews with AI today</p>
         </div>
 
-        {/* ── General Error ── */}
+        {/* General Error */}
         {errors.general && (
           <div className={styles.alertError}>⚠️ {errors.general}</div>
         )}
 
-        {/* ── Form ── */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className={styles.form} noValidate>
 
           {/* Full Name */}
@@ -184,9 +194,7 @@ export default function RegisterPage() {
               placeholder = "John Doe"
               className   = {`${styles.input} ${errors.full_name ? styles.inputError : ""}`}
             />
-            {errors.full_name && (
-              <span className={styles.errorMsg}>⚠ {errors.full_name}</span>
-            )}
+            {errors.full_name && <span className={styles.errorMsg}>⚠ {errors.full_name}</span>}
           </div>
 
           {/* Email */}
@@ -202,9 +210,7 @@ export default function RegisterPage() {
               placeholder = "you@example.com"
               className   = {`${styles.input} ${errors.email ? styles.inputError : ""}`}
             />
-            {errors.email && (
-              <span className={styles.errorMsg}>⚠ {errors.email}</span>
-            )}
+            {errors.email && <span className={styles.errorMsg}>⚠ {errors.email}</span>}
           </div>
 
           {/* Username */}
@@ -220,9 +226,7 @@ export default function RegisterPage() {
               placeholder = "johndoe123"
               className   = {`${styles.input} ${errors.username ? styles.inputError : ""}`}
             />
-            {errors.username && (
-              <span className={styles.errorMsg}>⚠ {errors.username}</span>
-            )}
+            {errors.username && <span className={styles.errorMsg}>⚠ {errors.username}</span>}
           </div>
 
           {/* Password */}
@@ -248,24 +252,18 @@ export default function RegisterPage() {
                 {showPass ? "🙈" : "👁️"}
               </button>
             </div>
-
-            {/* Strength Bar */}
             {formData.password && (
-              <div className={styles.strengthBar}>
-                <div
-                  className   = {styles.strengthFill}
-                  style       = {{ width: strength.width, background: strength.color }}
-                />
-              </div>
+              <>
+                <div className={styles.strengthBar}>
+                  <div className={styles.strengthFill}
+                    style={{ width: strength.width, background: strength.color }} />
+                </div>
+                <span className={styles.strengthLabel} style={{ color: strength.color }}>
+                  Strength: {strength.label}
+                </span>
+              </>
             )}
-            {formData.password && (
-              <span className={styles.strengthLabel} style={{ color: strength.color }}>
-                Strength: {strength.label}
-              </span>
-            )}
-            {errors.password && (
-              <span className={styles.errorMsg}>⚠ {errors.password}</span>
-            )}
+            {errors.password && <span className={styles.errorMsg}>⚠ {errors.password}</span>}
           </div>
 
           {/* Confirm Password */}
@@ -281,9 +279,7 @@ export default function RegisterPage() {
               placeholder = "Re-enter your password"
               className   = {`${styles.input} ${errors.confirm ? styles.inputError : ""}`}
             />
-            {errors.confirm && (
-              <span className={styles.errorMsg}>⚠ {errors.confirm}</span>
-            )}
+            {errors.confirm && <span className={styles.errorMsg}>⚠ {errors.confirm}</span>}
           </div>
 
           {/* Submit */}
@@ -297,14 +293,12 @@ export default function RegisterPage() {
                 <span className={styles.spinner} />
                 Creating account...
               </span>
-            ) : (
-              "Create Account →"
-            )}
+            ) : "Create Account →"}
           </button>
 
         </form>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <p className={styles.footerText}>
           Already have an account?{" "}
           <Link href="/login" className={styles.link}>Sign in</Link>

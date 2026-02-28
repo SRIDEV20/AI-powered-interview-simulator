@@ -17,6 +17,7 @@ A full-stack AI-powered interview simulator that helps you practice interviews, 
 - **Next.js 14** - React framework (App Router)
 - **TypeScript** - Type safety
 - **CSS Modules** - Component scoped styles
+- **React Context API** - Auth state management ✅ Day 16
 
 ---
 
@@ -66,25 +67,31 @@ ai-interview-simulator/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── globals.css          # Global styles & CSS variables
-│   │   │   ├── layout.tsx           # Root layout
+│   │   │   ├── layout.tsx           # ✅ Day 16 - Wrapped with AuthProvider
 │   │   │   ├── page.tsx             # ✅ Day 5  - Landing page
 │   │   │   ├── page.module.css      # Landing page styles
 │   │   │   ├── login/
-│   │   │   │   ├── page.tsx         # ✅ Day 15 - Login form + validation
-│   │   │   │   └── page.module.css  # ✅ Day 15 - Login styles
-│   │   │   └── register/
-│   │   │       ├── page.tsx         # ✅ Day 15 - Register form + validation + strength bar
-│   │   │       └── page.module.css  # ✅ Day 15 - Register styles
+│   │   │   │   ├── page.tsx         # ✅ Day 16 - Connected to real API
+│   │   │   │   └── page.module.css  # Login styles
+│   │   │   ├── register/
+│   │   │   │   ├── page.tsx         # ✅ Day 16 - Connected to real API
+│   │   │   │   └── page.module.css  # Register styles
+│   │   │   └── dashboard/
+│   │   │       └── page.tsx         # ✅ Day 16 - Protected placeholder
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── Header.tsx       # ✅ Day 5 - Sticky header
 │   │   │   │   ├── Header.module.css
 │   │   │   │   ├── Footer.tsx       # ✅ Day 5 - Footer
 │   │   │   │   └── Footer.module.css
+│   │   │   ├── auth/
+│   │   │   │   └── ProtectedRoute.tsx # ✅ Day 16 - Route guard
 │   │   │   ├── BackendStatus.tsx    # ✅ Day 5 - Live health indicator
 │   │   │   └── BackendStatus.module.css
+│   │   ├── context/
+│   │   │   └── AuthContext.tsx      # ✅ Day 16 - Auth state + JWT + login/logout
 │   │   └── lib/
-│   │       └── api.ts               # API helper functions
+│   │       └── api.ts               # ✅ Day 16 - Auth API functions added
 │   ├── .env.local                   # Environment variables (not in git)
 │   └── README.md
 └── README.md
@@ -124,7 +131,7 @@ ai-interview-simulator/
 
 | Method | Endpoint | Description | Day |
 |--------|----------|-------------|-----|
-| `GET` | `/api/frontend/dashboard` | User dashboard + stats | ⬜ Day 17 |
+| `GET` | `/api/frontend/dashboard` | Full dashboard + stats | ⬜ Day 17 |
 | `GET` | `/api/frontend/profile` | User profile page | ⬜ Day 18 |
 | `GET` | `/api/frontend/interview/setup` | New interview setup | ⬜ Day 19 |
 | `GET` | `/api/frontend/interview/[id]` | Live interview session | ⬜ Day 21 |
@@ -136,9 +143,10 @@ ai-interview-simulator/
 | Page | Route | Description | Status |
 |------|-------|-------------|--------|
 | Landing | `/` | Hero, features, how it works | ✅ Day 5 |
-| Login | `/login` | Login form + validation | ✅ Day 15 |
-| Register | `/register` | Register form + password strength | ✅ Day 15 |
-| Dashboard | `/dashboard` | User stats + interview history | ⬜ Day 17 |
+| Login | `/login` | Login form + validation + API | ✅ Day 15 + 16 |
+| Register | `/register` | Register form + password strength + API | ✅ Day 15 + 16 |
+| Dashboard | `/dashboard` | Protected placeholder | ✅ Day 16 |
+| Dashboard | `/dashboard` | Full stats + interview history | ⬜ Day 17 |
 | Profile | `/profile` | View & edit user profile | ⬜ Day 18 |
 | Interview Setup | `/interview/setup` | Configure new interview | ⬜ Day 19 |
 | Interview Session | `/interview/[id]` | Live interview UI | ⬜ Day 21 |
@@ -322,9 +330,10 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/test/ai"
 ## 🖥️ Frontend Pages Test
 
 ```
-http://localhost:3000/          ← Landing page
-http://localhost:3000/login     ← Login form
-http://localhost:3000/register  ← Register form
+http://localhost:3000/           ← Landing page
+http://localhost:3000/login      ← Login form (connects to real API)
+http://localhost:3000/register   ← Register form (connects to real API)
+http://localhost:3000/dashboard  ← Protected → redirects to /login if not auth
 ```
 
 ---
@@ -367,8 +376,8 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT skill_name, prof
 | Day 13 | Scoring algorithm + category scores + performance levels | ✅ Done |
 | Day 14 | Skill gap analysis + weak area detection + recommendation engine | ✅ Done |
 | Day 15 | Login page + Register page + form validation + password strength | ✅ Done |
-| Day 16 | Auth state management + JWT storage + API integration | ⬜ Next |
-| Day 17 | Dashboard layout + user stats + interview history | ⬜ Upcoming |
+| Day 16 | Auth context + JWT storage + API integration + protected routes | ✅ Done |
+| Day 17 | Dashboard layout + user stats + interview history | ⬜ Next |
 | Day 18 | Profile page (view/edit) | ⬜ Upcoming |
 | Day 19 | New interview setup page | ⬜ Upcoming |
 | Day 20 | Connect interview setup to API | ⬜ Upcoming |

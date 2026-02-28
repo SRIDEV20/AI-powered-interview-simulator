@@ -17,25 +17,31 @@ frontend/
 ├── src/
 │   ├── app/
 │   │   ├── globals.css              # Global styles & CSS variables
-│   │   ├── layout.tsx               # Root layout (metadata, fonts)
-│   │   ├── page.tsx                 # Landing page
+│   │   ├── layout.tsx               # ✅ Day 16 - Wrapped with AuthProvider
+│   │   ├── page.tsx                 # ✅ Day 5  - Landing page
 │   │   ├── page.module.css          # Landing page styles
 │   │   ├── login/
-│   │   │   ├── page.tsx             # ✅ Day 15 - Login form + validation
-│   │   │   └── page.module.css      # ✅ Day 15 - Login styles
-│   │   └── register/
-│   │       ├── page.tsx             # ✅ Day 15 - Register form + validation + strength bar
-│   │       └── page.module.css      # ✅ Day 15 - Register styles
+│   │   │   ├── page.tsx             # ✅ Day 16 - Connected to real API
+│   │   │   └── page.module.css      # Login styles
+│   │   ├── register/
+│   │   │   ├── page.tsx             # ✅ Day 16 - Connected to real API
+│   │   │   └── page.module.css      # Register styles
+│   │   └── dashboard/
+│   │       └── page.tsx             # ✅ Day 16 - Auth placeholder (full Day 17)
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── Header.tsx           # Sticky header with navigation
 │   │   │   ├── Header.module.css
 │   │   │   ├── Footer.tsx           # Footer with copyright
 │   │   │   └── Footer.module.css
+│   │   ├── auth/
+│   │   │   └── ProtectedRoute.tsx   # ✅ Day 16 - Route guard (redirects to /login)
 │   │   ├── BackendStatus.tsx        # Live backend health indicator
 │   │   └── BackendStatus.module.css
+│   ├── context/
+│   │   └── AuthContext.tsx          # ✅ Day 16 - Auth state + JWT + login/logout
 │   └── lib/
-│       └── api.ts                   # API helper functions
+│       └── api.ts                   # ✅ Day 16 - Auth API functions added
 ├── public/                          # Static assets
 ├── .env.local                       # Environment variables (not in git)
 ├── next.config.ts                   # Next.js configuration
@@ -65,6 +71,8 @@ frontend/
 - **CSS Variables** for design tokens
 - **No external CSS framework** (no Tailwind, no Bootstrap)
 - **Responsive** with media queries
+
+---
 
 ## ⚙️ Setup Instructions
 
@@ -122,25 +130,32 @@ npm start
 - How it works section (4 steps)
 - Header + Footer layout
 
-### Login Page (`/login`) ✅ Day 15
+### Login Page (`/login`) ✅ Day 15 + Day 16
 - Email + Password fields
 - Client-side form validation
 - Show/hide password toggle 👁️
 - Loading spinner on submit
-- Link to register page
-- Ready for API integration (Day 16)
+- **Connected to real backend API** ✅ Day 16
+- Auto redirect to `/dashboard` after login
+- Redirects away if already logged in
 
-### Register Page (`/register`) ✅ Day 15
+### Register Page (`/register`) ✅ Day 15 + Day 16
 - Full Name + Email + Username + Password + Confirm fields
 - Client-side form validation (all fields)
 - Password strength bar (Weak / Fair / Good / Strong)
 - Show/hide password toggle 👁️
 - Success screen after registration 🎉
-- Link to login page
-- Ready for API integration (Day 16)
+- **Connected to real backend API** ✅ Day 16
+- Redirects away if already logged in
+
+### Dashboard (`/dashboard`) ✅ Day 16 (Placeholder)
+- Protected route (redirects to `/login` if not authenticated)
+- Shows logged-in user info (name, username, email)
+- Logout button → clears JWT + redirects to `/login`
+- Full dashboard UI coming on Day 17
 
 ### Coming Soon
-- `/dashboard` - Interview dashboard (Day 17)
+- `/dashboard` - Full dashboard + stats (Day 17)
 - `/profile`   - User profile management (Day 18)
 - `/interview/setup` - New interview setup (Day 19)
 - `/interview/[id]`  - Live interview session (Day 21)
@@ -171,19 +186,29 @@ npm start
 - Shows 🔴 red when offline
 - Shows grey while loading
 
+### Auth Components ✅ Day 16
+
+#### `ProtectedRoute`
+- Wraps any page that requires authentication
+- Checks `isAuth` from `AuthContext`
+- Redirects to `/login` if not authenticated
+- Shows loading spinner while checking auth state
+
 ---
 
 ## 🔌 API Integration
 
-### `src/lib/api.ts`
-
-Current functions:
+### `src/lib/api.ts` ✅ Day 16
 
 | Function | Endpoint | Description | Day |
 |----------|----------|-------------|-----|
 | `getHealth()` | `GET /api/health` | Check backend status | Day 5 |
-
-> ⚠️ Auth API integration (login/register) coming in **Day 16**
+| `registerUser(data)` | `POST /api/auth/register` | Register new user | Day 16 |
+| `loginUser(data)` | `POST /api/auth/login` | Login + get JWT token | Day 16 |
+| `logoutUser(token)` | `POST /api/auth/logout` | Logout user | Day 16 |
+| `getCurrentUser(token)` | `GET /api/auth/me` | Get current user | Day 16 |
+| `getUserProfile(token)` | `GET /api/user/profile` | Get user profile | Day 16 |
+| `getUserStats(token)` | `GET /api/user/stats` | Get dashboard stats | Day 16 |
 
 ### Environment Variables
 
@@ -193,21 +218,48 @@ Current functions:
 
 ---
 
+## 🔐 Auth Context - Day 16
+
+### `src/context/AuthContext.tsx`
+
+| Item | Description |
+|------|-------------|
+| `AuthProvider` | Wraps the entire app in `layout.tsx` |
+| `useAuth()` | Hook to access auth state from any component |
+| `user` | Current logged-in user object (or `null`) |
+| `token` | JWT token string (or `null`) |
+| `loading` | `true` while checking localStorage on mount |
+| `isAuth` | `true` if token + user both exist |
+| `login(data)` | Calls API → saves token + user to localStorage |
+| `register(data)` | Calls API → returns user (no auto-login) |
+| `logout()` | Calls API → clears localStorage → resets state |
+
+### JWT Storage
+
+| Key | Value | Storage |
+|-----|-------|---------|
+| `ai_interview_token` | JWT access token string | localStorage |
+| `ai_interview_user` | User object (JSON) | localStorage |
+
+---
+
 ## 🛣️ Routing (App Router)
 
 ```
 app/
-├── page.tsx              → /                  ✅ Day 5  - Landing page
-├── layout.tsx            → All pages          ✅ Day 5  - Root layout
+├── page.tsx              → /              ✅ Day 5  - Landing page
+├── layout.tsx            → All pages      ✅ Day 16 - AuthProvider wrapper
 ├── login/
-│   └── page.tsx          → /login             ✅ Day 15 - Login form
-└── register/
-    └── page.tsx          → /register          ✅ Day 15 - Register form
+│   └── page.tsx          → /login         ✅ Day 16 - Login + API connected
+├── register/
+���   └── page.tsx          → /register      ✅ Day 16 - Register + API connected
+└── dashboard/
+    └── page.tsx          → /dashboard     ✅ Day 16 - Protected placeholder
 ```
 
 ---
 
-## ✅ Form Validation Rules - Day 15
+## ✅ Form Validation Rules
 
 ### Login Form
 
@@ -281,8 +333,22 @@ npm install
 - Check `:root {}` block is at the top of `globals.css`
 
 ### Form not validating
-- Make sure `noValidate` is on the `<form>` tag (disables browser default validation)
+- Make sure `noValidate` is on the `<form>` tag
 - Check `validate()` runs before API call in `handleSubmit`
+
+### "Failed to fetch" on login/register
+- Backend is not running → start it: `python main.py`
+- Check `.env.local` has `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`
+- Restart frontend after editing `.env.local`
+
+### JWT token not persisting after refresh
+- Check `localStorage` in browser DevTools → Application → Local Storage
+- Keys: `ai_interview_token` and `ai_interview_user`
+- If missing, `AuthContext` failed to save → check browser console
+
+### useAuth must be used inside AuthProvider
+- Make sure `<AuthProvider>` wraps `{children}` in `layout.tsx`
+- Never use `useAuth()` outside of a component inside the provider
 
 ---
 
@@ -316,13 +382,37 @@ import styles from "./Component.module.css";
 "use client";
 ```
 
+### Protecting a Page
+
+```tsx
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+
+export default function MyPage() {
+  return (
+    <ProtectedRoute>
+      {/* your page content */}
+    </ProtectedRoute>
+  );
+}
+```
+
+### Using Auth State
+
+```tsx
+import { useAuth } from "@/context/AuthContext";
+
+const { user, token, isAuth, login, logout } = useAuth();
+```
+
 ### Import Rules
 
 ```
-✅ pages     → components + lib/api
-✅ components → lib/api only
+✅ pages      → components + context + lib/api
+✅ components → context + lib/api only
+✅ context    → lib/api only
 ✅ lib/api    → no imports (pure fetch functions)
-❌ components → other pages (NEVER!)
+❌ components → other pages  (NEVER!)
+❌ lib/api    → context      (NEVER!)
 ```
 
 ---
@@ -335,7 +425,7 @@ Week 1 - Foundation
 
 Week 3 - Frontend Development
 ✅ Day 15 - Login page + Register page + form validation
-⬜ Day 16 - Auth state management + JWT + API integration
+✅ Day 16 - Auth context + JWT storage + API integration + protected routes
 ⬜ Day 17 - Dashboard layout + user stats + interview history
 ⬜ Day 18 - Profile page (view/edit)
 ⬜ Day 19 - New Interview setup page
