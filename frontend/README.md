@@ -16,24 +16,30 @@ Next.js frontend for the AI Interview Simulator project with CSS Modules styling
 frontend/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css         # Global styles & CSS variables
-│   │   ├── layout.tsx          # Root layout (metadata, fonts)
-│   │   ├── page.tsx            # Landing page
-│   │   └── page.module.css     # Landing page styles
+│   │   ├── globals.css              # Global styles & CSS variables
+│   │   ├── layout.tsx               # Root layout (metadata, fonts)
+│   │   ├── page.tsx                 # Landing page
+│   │   ├── page.module.css          # Landing page styles
+│   │   ├── login/
+│   │   │   ├── page.tsx             # ✅ Day 15 - Login form + validation
+│   │   │   └── page.module.css      # ✅ Day 15 - Login styles
+│   │   └── register/
+│   │       ├── page.tsx             # ✅ Day 15 - Register form + validation + strength bar
+│   │       └── page.module.css      # ✅ Day 15 - Register styles
 │   ├── components/
 │   │   ├── layout/
-│   │   │   ├── Header.tsx          # Sticky header with navigation
+│   │   │   ├── Header.tsx           # Sticky header with navigation
 │   │   │   ├── Header.module.css
-│   │   │   ├── Footer.tsx          # Footer with copyright
+│   │   │   ├── Footer.tsx           # Footer with copyright
 │   │   │   └── Footer.module.css
-│   │   ├── BackendStatus.tsx       # Live backend health indicator
+│   │   ├── BackendStatus.tsx        # Live backend health indicator
 │   │   └── BackendStatus.module.css
 │   └── lib/
-│       └── api.ts              # API helper functions
-├── public/                     # Static assets
-├── .env.local                  # Environment variables (not in git)
-├── next.config.ts              # Next.js configuration
-├── tsconfig.json               # TypeScript configuration
+│       └── api.ts                   # API helper functions
+├── public/                          # Static assets
+├── .env.local                       # Environment variables (not in git)
+├── next.config.ts                   # Next.js configuration
+├── tsconfig.json                    # TypeScript configuration
 ├── package.json
 └── README.md
 ```
@@ -105,44 +111,67 @@ npm run build
 npm start
 ```
 
+---
+
 ## 📄 Pages
 
-### Landing Page (`/`)
+### Landing Page (`/`) ✅ Day 5
 - Hero section with CTA buttons
 - Live backend status indicator
 - Features section (3 cards)
 - How it works section (4 steps)
 - Header + Footer layout
 
+### Login Page (`/login`) ✅ Day 15
+- Email + Password fields
+- Client-side form validation
+- Show/hide password toggle 👁️
+- Loading spinner on submit
+- Link to register page
+- Ready for API integration (Day 16)
+
+### Register Page (`/register`) ✅ Day 15
+- Full Name + Email + Username + Password + Confirm fields
+- Client-side form validation (all fields)
+- Password strength bar (Weak / Fair / Good / Strong)
+- Show/hide password toggle 👁️
+- Success screen after registration 🎉
+- Link to login page
+- Ready for API integration (Day 16)
+
 ### Coming Soon
-- `/register` - User registration
-- `/login` - User login
-- `/dashboard` - Interview dashboard
-- `/interview` - Interview session
-- `/results` - Interview results
+- `/dashboard` - Interview dashboard (Day 17)
+- `/profile`   - User profile management (Day 18)
+- `/interview/setup` - New interview setup (Day 19)
+- `/interview/[id]`  - Live interview session (Day 21)
+- `/results/[id]`    - Interview results (Day 22+)
+
+---
 
 ## 🧩 Components
 
 ### Layout Components
 
-#### `Header`
+#### `Header` ✅ Day 5
 - Sticky positioned
 - Glassmorphism blur effect
 - Navigation links
 - Brand logo/name
 
-#### `Footer`
+#### `Footer` ✅ Day 5
 - Copyright notice
 - Author name
 
 ### Feature Components
 
-#### `BackendStatus`
+#### `BackendStatus` ✅ Day 5
 - Client-side component
 - Calls `/api/health` on backend
 - Shows 🟢 green when online
 - Shows 🔴 red when offline
 - Shows grey while loading
+
+---
 
 ## 🔌 API Integration
 
@@ -150,9 +179,11 @@ npm start
 
 Current functions:
 
-| Function | Endpoint | Description |
-|----------|----------|-------------|
-| `getHealth()` | `GET /api/health` | Check backend status |
+| Function | Endpoint | Description | Day |
+|----------|----------|-------------|-----|
+| `getHealth()` | `GET /api/health` | Check backend status | Day 5 |
+
+> ⚠️ Auth API integration (login/register) coming in **Day 16**
 
 ### Environment Variables
 
@@ -160,16 +191,53 @@ Current functions:
 |----------|-------------|---------|
 | `NEXT_PUBLIC_API_BASE_URL` | Backend API URL | `http://localhost:8000` |
 
+---
+
 ## 🛣️ Routing (App Router)
 
 ```
 app/
-├── page.tsx          → /           (Landing page)
-├── layout.tsx        → All pages   (Root layout)
-├── register/         → /register   (Coming Day 6)
-├── login/            → /login      (Coming Day 6)
-└── dashboard/        → /dashboard  (Coming Day 7+)
+├── page.tsx              → /                  ✅ Day 5  - Landing page
+├── layout.tsx            → All pages          ✅ Day 5  - Root layout
+├── login/
+│   └── page.tsx          → /login             ✅ Day 15 - Login form
+└── register/
+    └── page.tsx          → /register          ✅ Day 15 - Register form
 ```
+
+---
+
+## ✅ Form Validation Rules - Day 15
+
+### Login Form
+
+| Field | Rules |
+|-------|-------|
+| `email` | Required, valid email format |
+| `password` | Required, min 8 characters |
+
+### Register Form
+
+| Field | Rules |
+|-------|-------|
+| `full_name` | Required, min 2 characters |
+| `email` | Required, valid email format |
+| `username` | Required, 3-50 chars, letters/numbers/hyphens/underscores only |
+| `password` | Required, min 8 chars, at least 1 uppercase, at least 1 number |
+| `confirm` | Required, must match password |
+
+### Password Strength Bar
+
+| Score | Label | Color |
+|-------|-------|-------|
+| 1 criteria met | Weak | 🔴 Red |
+| 2 criteria met | Fair | 🟠 Orange |
+| 3 criteria met | Good | 🟡 Yellow |
+| 4 criteria met | Strong | 🟢 Green |
+
+**Criteria:** 8+ chars, uppercase letter, number, special character
+
+---
 
 ## 🔧 Available Scripts
 
@@ -187,11 +255,12 @@ npm start
 npm run lint
 ```
 
+---
+
 ## 🐛 Troubleshooting
 
 ### Port 3000 already in use
 ```powershell
-# Find and kill the process
 netstat -ano | findstr :3000
 taskkill /PID <PID> /F
 ```
@@ -203,7 +272,6 @@ taskkill /PID <PID> /F
 
 ### Module not found errors
 ```bash
-# Reinstall dependencies
 rm -rf node_modules
 npm install
 ```
@@ -211,6 +279,12 @@ npm install
 ### CSS variables not working
 - Make sure `globals.css` is imported in `layout.tsx`
 - Check `:root {}` block is at the top of `globals.css`
+
+### Form not validating
+- Make sure `noValidate` is on the `<form>` tag (disables browser default validation)
+- Check `validate()` runs before API call in `handleSubmit`
+
+---
 
 ## 📝 Development Notes
 
@@ -230,12 +304,46 @@ npm install
 ### CSS Modules Convention
 
 ```tsx
-// Import styles
 import styles from "./Component.module.css";
 
-// Use in JSX
 <div className={styles.myClass}>
 ```
+
+### Client Components
+
+```tsx
+// Required for hooks (useState, useEffect) or event handlers
+"use client";
+```
+
+### Import Rules
+
+```
+✅ pages     → components + lib/api
+✅ components → lib/api only
+✅ lib/api    → no imports (pure fetch functions)
+❌ components → other pages (NEVER!)
+```
+
+---
+
+## 📊 Progress Tracker
+
+```
+Week 1 - Foundation
+✅ Day 5  - Next.js setup + landing page + Header + Footer
+
+Week 3 - Frontend Development
+✅ Day 15 - Login page + Register page + form validation
+⬜ Day 16 - Auth state management + JWT + API integration
+⬜ Day 17 - Dashboard layout + user stats + interview history
+⬜ Day 18 - Profile page (view/edit)
+⬜ Day 19 - New Interview setup page
+⬜ Day 20 - Connect interview setup to API
+⬜ Day 21 - Live interview interface
+```
+
+---
 
 ## 🚀 Deployment (Future)
 
@@ -243,6 +351,8 @@ import styles from "./Component.module.css";
 - [ ] Run `npm run build` to check for errors
 - [ ] Deploy to Vercel (recommended for Next.js)
 - [ ] Configure custom domain
+
+---
 
 ## 📄 License
 

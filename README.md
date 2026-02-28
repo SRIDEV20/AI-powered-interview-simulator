@@ -65,18 +65,27 @@ ai-interview-simulator/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── globals.css
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx
-│   │   │   └── page.module.css
+│   │   │   ├── globals.css          # Global styles & CSS variables
+│   │   │   ├── layout.tsx           # Root layout
+│   │   │   ├── page.tsx             # ✅ Day 5  - Landing page
+│   │   │   ├── page.module.css      # Landing page styles
+│   │   │   ├── login/
+│   │   │   │   ├── page.tsx         # ✅ Day 15 - Login form + validation
+│   │   │   │   └── page.module.css  # ✅ Day 15 - Login styles
+│   │   │   └── register/
+│   │   │       ├── page.tsx         # ✅ Day 15 - Register form + validation + strength bar
+│   │   │       └── page.module.css  # ✅ Day 15 - Register styles
 │   │   ├── components/
 │   │   │   ├── layout/
-│   │   │   │   ├── Header.tsx
-│   │   │   │   └── Footer.tsx
-│   │   │   └── BackendStatus.tsx
+│   │   │   │   ├── Header.tsx       # ✅ Day 5 - Sticky header
+│   │   │   │   ├── Header.module.css
+│   │   │   │   ├── Footer.tsx       # ✅ Day 5 - Footer
+│   │   │   │   └── Footer.module.css
+│   │   │   ├── BackendStatus.tsx    # ✅ Day 5 - Live health indicator
+│   │   │   └── BackendStatus.module.css
 │   │   └── lib/
-│   │       └── api.ts
-│   ├── .env.local
+│   │       └── api.ts               # API helper functions
+│   ├── .env.local                   # Environment variables (not in git)
 │   └── README.md
 └── README.md
 ```
@@ -115,9 +124,25 @@ ai-interview-simulator/
 
 | Method | Endpoint | Description | Day |
 |--------|----------|-------------|-----|
-| `GET` | `/api/frontend/interview` | Frontend interview UI | ⬜ Day 15 |
-| `GET` | `/api/frontend/results` | Frontend results dashboard | ⬜ Day 16 |
-| `GET` | `/api/frontend/skill-gaps` | Frontend skill gaps dashboard | ⬜ Day 17 |
+| `GET` | `/api/frontend/dashboard` | User dashboard + stats | ⬜ Day 17 |
+| `GET` | `/api/frontend/profile` | User profile page | ⬜ Day 18 |
+| `GET` | `/api/frontend/interview/setup` | New interview setup | ⬜ Day 19 |
+| `GET` | `/api/frontend/interview/[id]` | Live interview session | ⬜ Day 21 |
+
+---
+
+## 🖥️ Frontend Pages
+
+| Page | Route | Description | Status |
+|------|-------|-------------|--------|
+| Landing | `/` | Hero, features, how it works | ✅ Day 5 |
+| Login | `/login` | Login form + validation | ✅ Day 15 |
+| Register | `/register` | Register form + password strength | ✅ Day 15 |
+| Dashboard | `/dashboard` | User stats + interview history | ⬜ Day 17 |
+| Profile | `/profile` | View & edit user profile | ⬜ Day 18 |
+| Interview Setup | `/interview/setup` | Configure new interview | ⬜ Day 19 |
+| Interview Session | `/interview/[id]` | Live interview UI | ⬜ Day 21 |
+| Results | `/results/[id]` | Interview results & score | ⬜ Day 22 |
 
 ---
 
@@ -153,7 +178,7 @@ Frontend runs at: **http://localhost:3000**
 
 ### 4. Configure Environment Variables
 
-Create `backend/.env` file:
+**Create `backend/.env`:**
 
 ```env
 # Application Settings
@@ -176,14 +201,20 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 # CORS Settings
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 
-# OpenAI Settings ✅ Day 9
+# OpenAI Settings
 OPENAI_API_KEY=sk-your-real-key-here
 OPENAI_MODEL=gpt-3.5-turbo
 OPENAI_MAX_TOKENS=2000
 OPENAI_TEMPERATURE=0.7
 ```
 
-⚠️ **Never commit `.env` to GitHub — it's protected by `.gitignore`!**
+**Create `frontend/.env.local`:**
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+⚠️ **Never commit `.env` or `.env.local` to GitHub — protected by `.gitignore`!**
 
 ---
 
@@ -197,14 +228,14 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/auth/register" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "username": "testuser", "password": "Test1234", "full_name": "Test User"}'
 
-# Login and save token automatically
+# Login and save token
 $response = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/auth/login" `
   -ContentType "application/json" `
   -Body '{"email": "test@example.com", "password": "Test1234"}'
 $token = $response.access_token
 
-# Get current user (protected route)
+# Get current user
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/auth/me" `
   -Headers @{Authorization = "Bearer $token"}
@@ -223,7 +254,7 @@ Invoke-RestMethod -Method GET `
 
 # ── Interview Lifecycle ───────────────────────────────────────────
 
-# Step 1 - Create interview (calls GPT-4 💰)
+# Step 1 - Create interview (GPT-4 💰)
 $interview = Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/create" `
   -ContentType "application/json" `
@@ -234,17 +265,7 @@ $q1Id = $interview.questions[0].id
 $q2Id = $interview.questions[1].id
 $q3Id = $interview.questions[2].id
 
-# Step 2 - List all interviews
-Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/interview/" `
-  -Headers @{Authorization = "Bearer $token"}
-
-# Step 3 - Get interview detail
-Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/interview/$interviewId" `
-  -Headers @{Authorization = "Bearer $token"}
-
-# Step 4 - Submit all 3 answers (GPT evaluates 💰 x3)
+# Step 2 - Submit all 3 answers (GPT evaluates 💰 x3)
 Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/interview/$interviewId/answer/$q1Id" `
   -ContentType "application/json" `
@@ -263,45 +284,47 @@ Invoke-RestMethod -Method POST `
   -Headers @{Authorization = "Bearer $token"} `
   -Body '{"user_answer": "Your answer here...", "time_taken_seconds": 100}'
 
-# Step 5 - Get full results
+# Step 3 - Get results
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId/results" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 6 - Get score breakdown (GPT summary 💰)
+# Step 4 - Get score breakdown (GPT summary 💰)
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/interview/$interviewId/score?generate_summary=true" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 7 - Analyze skill gaps (GPT recommendations 💰)
+# Step 5 - Analyze skill gaps (GPT recommendations 💰)
 Invoke-RestMethod -Method POST `
   -Uri "http://localhost:8000/api/skill-gaps/analyze/$interviewId" `
   -ContentType "application/json" `
   -Headers @{Authorization = "Bearer $token"} `
   -Body '{"force_reanalyze": false}'
 
-# Step 8 - Get all user skill gaps
+# Step 6 - Get all user skill gaps
 Invoke-RestMethod -Method GET `
   -Uri "http://localhost:8000/api/skill-gaps/" `
   -Headers @{Authorization = "Bearer $token"}
 
-# Step 9 - Get interview skill gaps
-Invoke-RestMethod -Method GET `
-  -Uri "http://localhost:8000/api/skill-gaps/interview/$interviewId" `
-  -Headers @{Authorization = "Bearer $token"}
-
-# Step 10 - Complete interview
+# Step 7 - Complete interview
 Invoke-RestMethod -Method PATCH `
   -Uri "http://localhost:8000/api/interview/$interviewId/complete" `
   -Headers @{Authorization = "Bearer $token"}
 
 # ── Health & AI ───────────────────────────────────────────────────
 
-# Health check
 Invoke-RestMethod -Uri "http://localhost:8000/api/health"
-
-# Test OpenAI GPT-4 connection
 Invoke-RestMethod -Uri "http://localhost:8000/api/test/ai"
+```
+
+---
+
+## 🖥️ Frontend Pages Test
+
+```
+http://localhost:3000/          ← Landing page
+http://localhost:3000/login     ← Login form
+http://localhost:3000/register  ← Register form
 ```
 
 ---
@@ -315,19 +338,11 @@ D:\postgress\bin\psql -U postgres
 # Create database
 CREATE DATABASE ai_interview_db;
 
-# Verify users table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username, is_active, created_at FROM users;"
-
-# Verify interviews table
+# Verify tables
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, email, username FROM users;"
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, job_role, overall_score, status FROM interviews;"
-
-# Verify questions table
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, question_text, skill_category FROM questions;"
-
-# Verify responses table
-D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, ai_feedback, answered_at FROM responses;"
-
-# Verify skill_gaps table
+D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT id, score, answered_at FROM responses;"
 D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT skill_name, proficiency_level, gap_score FROM skill_gaps ORDER BY gap_score ASC;"
 ```
 
@@ -351,9 +366,13 @@ D:\postgress\bin\psql -U postgres -d ai_interview_db -c "SELECT skill_name, prof
 | Day 12 | Answer submission + GPT-4 evaluation + results | ✅ Done |
 | Day 13 | Scoring algorithm + category scores + performance levels | ✅ Done |
 | Day 14 | Skill gap analysis + weak area detection + recommendation engine | ✅ Done |
-| Day 15 | Frontend interview UI | ⬜ Next |
-| Day 16 | Frontend results dashboard | ⬜ Upcoming |
-| Day 17 | Frontend skill gaps dashboard | ⬜ Upcoming |
+| Day 15 | Login page + Register page + form validation + password strength | ✅ Done |
+| Day 16 | Auth state management + JWT storage + API integration | ⬜ Next |
+| Day 17 | Dashboard layout + user stats + interview history | ⬜ Upcoming |
+| Day 18 | Profile page (view/edit) | ⬜ Upcoming |
+| Day 19 | New interview setup page | ⬜ Upcoming |
+| Day 20 | Connect interview setup to API | ⬜ Upcoming |
+| Day 21 | Live interview interface | ⬜ Upcoming |
 
 ---
 
