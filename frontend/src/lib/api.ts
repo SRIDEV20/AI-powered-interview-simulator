@@ -29,13 +29,28 @@ export interface LoginData {
 }
 
 export interface UserStats {
-  total_interviews       : number;
-  completed_interviews   : number;
-  average_score          : number;
-  best_score             : number;
+  total_interviews        : number;
+  completed_interviews    : number;
+  average_score           : number;
+  best_score              : number;
   total_questions_answered: number;
-  member_since           : string;
-  account_status         : string;
+  member_since            : string;
+  account_status          : string;
+}
+
+export interface InterviewSummary {
+  interview_id   : string;
+  job_role       : string;
+  difficulty     : string;
+  total_questions: number;
+  status         : string;
+  overall_score  : number | null;
+  created_at     : string;
+}
+
+export interface InterviewListResponse {
+  total      : number;
+  interviews : InterviewSummary[];
 }
 
 // ── Helper ─────────────────────────────────────────────────────────
@@ -109,6 +124,13 @@ export async function getUserProfile(token: string): Promise<User> {
 
 export async function getUserStats(token: string): Promise<UserStats> {
   return request<UserStats>("/api/user/stats", {
+    headers: authHeader(token),
+  });
+}
+
+// ── Interview APIs ✅ Day 17 ───────────────────────────────────────
+export async function getInterviewList(token: string): Promise<InterviewListResponse> {
+  return request<InterviewListResponse>("/api/interview/", {
     headers: authHeader(token),
   });
 }

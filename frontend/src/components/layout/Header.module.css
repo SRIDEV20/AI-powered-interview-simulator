@@ -1,33 +1,105 @@
+/* ── Header ───────────────────────────────────────────────────── */
 .header {
-  position: sticky;
-  top: 0;
+  position      : sticky;
+  top           : 0;
   backdrop-filter: blur(10px);
-  background: rgba(11, 16, 32, 0.55);
-  border-bottom: 1px solid var(--border);
-  z-index: 10;
+  background    : rgba(11, 16, 32, 0.75);
+  border-bottom : 1px solid var(--border);
+  z-index       : 100;
 }
 
 .inner {
-  display: flex;
-  align-items: center;
+  display        : flex;
+  align-items    : center;
   justify-content: space-between;
-  height: 64px;
+  height         : 64px;
 }
 
+/* ── Brand ────────────────────────────────────────────────────── */
 .brand {
-  font-weight: 700;
-  font-size: 18px;
+  font-weight   : 700;
+  font-size     : 18px;
   letter-spacing: 0.2px;
+  color         : var(--text);
+  transition    : opacity 0.2s;
 }
 
+.brand:hover {
+  opacity: 0.85;
+}
+
+/* ── Nav ──────────────────────────────────────────────────────── */
 .nav {
-  display: flex;
-  gap: 24px;
-  color: var(--muted);
-  font-size: 15px;
+  display    : flex;
+  align-items: center;
+  gap        : 20px;
+  font-size  : 0.9rem;
 }
 
-.nav a:hover {
+.navLink {
+  color     : var(--muted);
+  transition: color 0.15s;
+}
+
+.navLink:hover {
   color: var(--text);
-  transition: color 150ms ease;
+}
+
+.navLinkActive {
+  color      : var(--brand) !important;
+  font-weight: 600;
+}
+
+/* ── Divider ──────────────────────────────────────────────────── */
+.divider {
+  color  : var(--border);
+  opacity: 0.6;
+}
+
+/* ── Username ─────────────────────────────────────────────────── */
+.username {
+  color      : var(--brand);
+  font-weight: 600;
+  font-size  : 0.875rem;
+}
+
+/* ── Logout Button ────────────────────────────────────────────── */
+.logoutBtn {
+  background   : rgba(239, 68, 68, 0.12);
+  border       : 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  color        : #f87171;
+  font-size    : 0.85rem;
+  font-weight  : 600;
+  padding      : 6px 14px;
+  cursor       : pointer;
+  transition   : background 0.2s, border-color 0.2s;
+}
+
+.logoutBtn:hover {
+  background  : rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ── Sign Up Button ───────────────────────────────────────────── */
+.signupBtn {
+  background   : var(--brand);
+  color        : #0b1020;
+  font-weight  : 700;
+  font-size    : 0.85rem;
+  padding      : 7px 16px;
+  border-radius: 8px;
+  transition   : opacity 0.2s, transform 0.1s;
+}
+
+.signupBtn:hover {
+  opacity  : 0.88;
+  transform: translateY(-1px);
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .username { display: none; }
+  .divider  { display: none; }
+  .nav      { gap: 12px; }
 }
