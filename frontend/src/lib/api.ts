@@ -53,6 +53,13 @@ export interface InterviewListResponse {
   interviews : InterviewSummary[];
 }
 
+// ✅ Day 18
+export interface UpdateProfileData {
+  full_name? : string;
+  username?  : string;
+  email?     : string;
+}
+
 // ── Helper ─────────────────────────────────────────────────────────
 async function request<T>(
   endpoint : string,
@@ -125,6 +132,18 @@ export async function getUserProfile(token: string): Promise<User> {
 export async function getUserStats(token: string): Promise<UserStats> {
   return request<UserStats>("/api/user/stats", {
     headers: authHeader(token),
+  });
+}
+
+// ✅ Day 18
+export async function updateUserProfile(
+  token : string,
+  data  : UpdateProfileData
+): Promise<User> {
+  return request<User>("/api/user/profile", {
+    method  : "PUT",
+    headers : authHeader(token),
+    body    : JSON.stringify(data),
   });
 }
 
