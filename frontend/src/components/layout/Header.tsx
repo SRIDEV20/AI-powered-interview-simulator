@@ -19,6 +19,8 @@ export default function Header() {
     router.push("/login");
   };
 
+  const isActive = (path: string) => pathname === path;
+
   return (
     <header className={styles.header}>
       <div className="container">
@@ -32,13 +34,19 @@ export default function Header() {
           {/* Nav */}
           <nav className={styles.nav}>
             {isAuth ? (
-              // ── Logged in nav ──
               <>
                 <Link
                   href="/dashboard"
-                  className={`${styles.navLink} ${pathname === "/dashboard" ? styles.navLinkActive : ""}`}
+                  className={`${styles.navLink} ${isActive("/dashboard") ? styles.navLinkActive : ""}`}
                 >
                   Dashboard
+                </Link>
+
+                <Link
+                  href="/profile"
+                  className={`${styles.navLink} ${isActive("/profile") ? styles.navLinkActive : ""}`}
+                >
+                  Profile
                 </Link>
 
                 <span className={styles.divider}>|</span>
@@ -53,7 +61,6 @@ export default function Header() {
                 </button>
               </>
             ) : (
-              // ── Logged out nav ──
               <>
                 <a href="#features" className={styles.navLink}>Features</a>
                 <a href="#how"      className={styles.navLink}>How it works</a>
