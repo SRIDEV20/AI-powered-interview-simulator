@@ -8,7 +8,15 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { User, loginUser, registerUser, logoutUser, LoginData, RegisterData } from "@/lib/api";
+import {
+  User,
+  loginUser,
+  registerUser,
+  logoutUser,
+  getCurrentUser,
+  LoginData,
+  RegisterData,
+} from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface AuthState {
@@ -18,10 +26,11 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login    : (data: LoginData)    => Promise<void>;
-  register : (data: RegisterData) => Promise<User>;
-  logout   : ()                   => Promise<void>;
-  isAuth   : boolean;
+  login       : (data: LoginData)    => Promise<void>;
+  register    : (data: RegisterData) => Promise<User>;
+  logout      : ()                   => Promise<void>;
+  refreshUser : ()                   => Promise<void>;
+  isAuth      : boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -36,13 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user    : null,
     token   : null,
-    loading : true,      // true on first load → check localStorage
+    loading : true,
   });
 
   // ── Load from localStorage on mount ──────────────────────────────
   useEffect(() => {
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token   = localStorage.getItem(TOKEN_KEY);
       const userStr = localStorage.getItem(USER_KEY);
 
       if (token && userStr) {
@@ -61,35 +70,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Login ─────────────────────────────────────────────────────────
   const login = useCallback(async (data: LoginData) => {
     const res = await loginUser(data);
-
-    // Save to localStorage
     localStorage.setItem(TOKEN_KEY, res.access_token);
     localStorage.setItem(USER_KEY,  JSON.stringify(res.user));
-
     setState({ user: res.user, token: res.access_token, loading: false });
   }, []);
 
   // ── Register ──────────────────────────────────────────────────────
   const register = useCallback(async (data: RegisterData): Promise<User> => {
-    const user = await registerUser(data);
-    // Don't auto-login after register — redirect to /login
-    return user;
+    return await registerUser(data);
   }, []);
 
   // ── Logout ────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
-      if (state.token) {
-        await logoutUser(state.token);
-      }
+      if (state.token) await logoutUser(state.token);
     } catch {
-      // Ignore logout API errors — always clear local state
+      // Ignore logout errors
     } finally {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       setState({ user: null, token: null, loading: false });
     }
   }, [state.token]);
+
+  // ── Refresh User ✅ Day 18 ────────────────────────────────────────
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return;
+    try {
+      const user = await getCurrentUser(token);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      setState(prev => ({ ...prev, user }));
+    } catch {
+      // Token may be expired — ignore silently
+    }
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────
   return (
@@ -99,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshUser,
         isAuth: !!state.token && !!state.user,
       }}
     >
