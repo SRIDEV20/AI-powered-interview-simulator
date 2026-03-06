@@ -36,7 +36,7 @@ function getInitials(name: string): string {
 
 // ─────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
-  const { user, token, login } = useAuth();
+  const { user, token, refreshUser } = useAuth();    // ✅ refreshUser (not login)
 
   const [stats,    setStats]    = useState<UserStats | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -137,14 +137,10 @@ export default function ProfilePage() {
       };
 
       await updateUserProfile(token, updated);
-
-      // Re-login to refresh token + user in context
-      await login({ email: formData.email, password: "" });
+      await refreshUser();                           // ✅ refresh user in context
 
       setSuccess("✅ Profile updated successfully!");
       setEditMode(false);
-
-      // Clear success after 3s
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update profile");
@@ -346,9 +342,13 @@ export default function ProfilePage() {
                     <span className={styles.statRowLabel}>📈 Average Score</span>
                     <span
                       className={styles.statRowValue}
-                      style={{ color: stats.average_score > 0 ? getScoreColor(stats.average_score) : "var(--muted)" }}
+                      style={{ color: stats.average_score > 0
+                        ? getScoreColor(stats.average_score)
+                        : "var(--muted)" }}
                     >
-                      {stats.average_score > 0 ? `${stats.average_score.toFixed(1)}%` : "—"}
+                      {stats.average_score > 0
+                        ? `${stats.average_score.toFixed(1)}%`
+                        : "—"}
                     </span>
                   </div>
 
@@ -356,15 +356,21 @@ export default function ProfilePage() {
                     <span className={styles.statRowLabel}>🏆 Best Score</span>
                     <span
                       className={styles.statRowValue}
-                      style={{ color: stats.best_score > 0 ? getScoreColor(stats.best_score) : "var(--muted)" }}
+                      style={{ color: stats.best_score > 0
+                        ? getScoreColor(stats.best_score)
+                        : "var(--muted)" }}
                     >
-                      {stats.best_score > 0 ? `${stats.best_score.toFixed(1)}%` : "—"}
+                      {stats.best_score > 0
+                        ? `${stats.best_score.toFixed(1)}%`
+                        : "—"}
                     </span>
                   </div>
 
                   <div className={styles.statRow}>
                     <span className={styles.statRowLabel}>💬 Questions Answered</span>
-                    <span className={styles.statRowValue}>{stats.total_questions_answered}</span>
+                    <span className={styles.statRowValue}>
+                      {stats.total_questions_answered}
+                    </span>
                   </div>
 
                   <hr className={styles.statsDivider} />
@@ -389,7 +395,7 @@ export default function ProfilePage() {
               {/* ── Quick Links ── */}
               <div className={styles.quickLinks}>
                 <h3 className={styles.quickTitle}>Quick Actions</h3>
-                <a href="/dashboard"      className={styles.quickLink}>📋 View Dashboard</a>
+                <a href="/dashboard"       className={styles.quickLink}>📋 View Dashboard</a>
                 <a href="/interview/setup" className={styles.quickLink}>🎤 New Interview</a>
               </div>
 
