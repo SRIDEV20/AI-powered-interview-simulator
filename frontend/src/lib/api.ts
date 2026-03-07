@@ -60,6 +60,37 @@ export interface UpdateProfileData {
   email?     : string;
 }
 
+// ✅ Day 19
+export type Difficulty    = "beginner" | "intermediate" | "advanced";
+export type QuestionType  = "technical" | "behavioral" | "mixed";
+
+export interface CreateInterviewData {
+  job_role      : string;
+  difficulty    : Difficulty;
+  num_questions : number;
+  question_type : QuestionType;
+}
+
+export interface InterviewQuestion {
+  id             : string;
+  question_text  : string;
+  question_type  : string;
+  difficulty     : string;
+  skill_category : string;
+  order_number   : number;
+}
+
+export interface CreateInterviewResponse {
+  interview_id  : string;
+  job_role      : string;
+  difficulty    : string;
+  question_type : string;
+  total_questions: number;
+  status        : string;
+  created_at    : string;
+  questions     : InterviewQuestion[];
+}
+
 // ── Helper ─────────────────────────────────────────────────────────
 async function request<T>(
   endpoint : string,
@@ -151,5 +182,17 @@ export async function updateUserProfile(
 export async function getInterviewList(token: string): Promise<InterviewListResponse> {
   return request<InterviewListResponse>("/api/interview/", {
     headers: authHeader(token),
+  });
+}
+
+// ✅ Day 19
+export async function createInterview(
+  token : string,
+  data  : CreateInterviewData
+): Promise<CreateInterviewResponse> {
+  return request<CreateInterviewResponse>("/api/interview/create", {
+    method  : "POST",
+    headers : authHeader(token),
+    body    : JSON.stringify(data),
   });
 }
