@@ -30,27 +30,27 @@ function formatTime(seconds: number): string {
 
 // ─────────────────────────────────────────────────────────────────
 export default function InterviewSessionPage() {
-  const { token }    = useAuth();
-  const params       = useParams();
-  const router       = useRouter();
-  const interviewId  = params.id as string;
+  const { token }   = useAuth();
+  const params      = useParams();
+  const router      = useRouter();
+  const interviewId = params.id as string;
 
   // ── State ─────────────────────────────────────────────────────
-  const [interview,    setInterview]    = useState<InterviewDetail | null>(null);
-  const [currentIdx,   setCurrentIdx]   = useState(0);
-  const [answer,       setAnswer]       = useState("");
-  const [evaluation,   setEvaluation]   = useState<EvaluationResult | null>(null);
-  const [allEvals,     setAllEvals]     = useState<EvaluationResult[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [completing,   setCompleting]   = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
+  const [interview,  setInterview]  = useState<InterviewDetail | null>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [answer,     setAnswer]     = useState("");
+  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
+  const [allEvals,   setAllEvals]   = useState<EvaluationResult[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
   const [phase, setPhase] = useState<"answering" | "feedback" | "finished">("answering");
 
   // ── Timer ─────────────────────────────────────────────────────
-  const [elapsed,   setElapsed]   = useState(0);
-  const timerRef                  = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef              = useRef<number>(Date.now());
+  const [elapsed,    setElapsed]   = useState(0);
+  const timerRef                   = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef               = useRef<number>(Date.now());
 
   const startTimer = useCallback(() => {
     startTimeRef.current = Date.now();
@@ -94,11 +94,11 @@ export default function InterviewSessionPage() {
   }, [currentIdx, loading, phase, startTimer, stopTimer]);
 
   // ── Current question ───────────────────────────────────────────
-  const questions   = interview?.questions ?? [];
-  const currentQ    = questions[currentIdx] as InterviewQuestion | undefined;
-  const totalQ      = questions.length;
-  const isLastQ     = currentIdx === totalQ - 1;
-  const progress    = totalQ > 0 ? ((currentIdx) / totalQ) * 100 : 0;
+  const questions = interview?.questions ?? [];
+  const currentQ  = questions[currentIdx] as InterviewQuestion | undefined;
+  const totalQ    = questions.length;
+  const isLastQ   = currentIdx === totalQ - 1;
+  const progress  = totalQ > 0 ? (currentIdx / totalQ) * 100 : 0;
 
   // ── Submit Answer ──────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -125,10 +125,9 @@ export default function InterviewSessionPage() {
     }
   };
 
-  // ── Next Question ──────────────────────────────────────────────
+  // ── Next Question ─────────��────────────────────────────────────
   const handleNext = async () => {
     if (isLastQ) {
-      // Complete the interview
       setCompleting(true);
       try {
         await completeInterview(token!, interviewId);
@@ -169,7 +168,10 @@ export default function InterviewSessionPage() {
       <ProtectedRoute>
         <div className={styles.centerPage}>
           <div className={styles.errorBox}>⚠️ {error}</div>
-          <button className={styles.backBtn} onClick={() => router.push("/dashboard")}>
+          <button
+            className = {styles.backBtn}
+            onClick   = {() => router.push("/dashboard")}
+          >
             ← Back to Dashboard
           </button>
         </div>
@@ -284,10 +286,13 @@ export default function InterviewSessionPage() {
               {/* Question */}
               <div className={styles.questionSection}>
                 <div className={styles.questionMeta}>
-                  <span className={styles.qTypeBadge}>{currentQ.question_type}</span>
-                  <span className={styles.qCatBadge}>{currentQ.skill_category}</span>
+                  {/* ✅ Fixed: type not question_type */}
+                  <span className={styles.qTypeBadge}>{currentQ.type}</span>
+                  {/* ✅ Fixed: difficulty not skill_category */}
+                  <span className={styles.qCatBadge}>{currentQ.difficulty}</span>
                 </div>
-                <h2 className={styles.questionText}>{currentQ.question_text}</h2>
+                {/* ✅ Fixed: question not question_text */}
+                <h2 className={styles.questionText}>{currentQ.question}</h2>
               </div>
 
               {/* Answer Area */}
@@ -333,12 +338,14 @@ export default function InterviewSessionPage() {
               {/* Question recap */}
               <div className={styles.questionRecap}>
                 <span className={styles.recapLabel}>Q{currentIdx + 1}:</span>
-                <span className={styles.recapText}>{currentQ.question_text}</span>
+                {/* ✅ Fixed: question not question_text */}
+                <span className={styles.recapText}>{currentQ.question}</span>
               </div>
 
               {/* Score */}
               <div className={styles.scoreRow}>
-                <div className={styles.scoreBig}
+                <div
+                  className={styles.scoreBig}
                   style={{ color: getScoreColor(evaluation.score) }}
                 >
                   {evaluation.score.toFixed(1)}%

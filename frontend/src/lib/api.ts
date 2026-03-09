@@ -71,13 +71,14 @@ export interface CreateInterviewData {
   question_type : QuestionType;
 }
 
+// ✅ Fixed to match actual backend field names
 export interface InterviewQuestion {
   id             : string;
-  question_text  : string;
-  question_type  : string;
+  question       : string;      // ✅ backend sends "question"
+  type           : string;      // ✅ backend sends "type"
   difficulty     : string;
-  skill_category : string;
   order_number   : number;
+  expected_points: string[];
 }
 
 export interface CreateInterviewResponse {
@@ -105,18 +106,18 @@ export interface InterviewDetail {
 }
 
 export interface SubmitAnswerData {
-  user_answer         : string;
-  time_taken_seconds  : number;
+  user_answer        : string;
+  time_taken_seconds : number;
 }
 
 export interface EvaluationResult {
-  question_id         : string;
-  score               : number;
-  feedback            : string;
-  strengths           : string[];
-  improvements        : string[];
-  sample_answer       : string;
-  time_taken_seconds  : number;
+  question_id        : string;
+  score              : number;
+  feedback           : string;
+  strengths          : string[];
+  improvements       : string[];
+  sample_answer      : string;
+  time_taken_seconds : number;
 }
 
 export interface CompleteInterviewResponse {
@@ -131,12 +132,13 @@ async function request<T>(
   endpoint : string,
   options  : RequestInit = {}
 ): Promise<T> {
+  const { headers: optHeaders, ...restOptions } = options;
   const res = await fetch(`${baseUrl}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
-      ...options.headers,
+      ...(optHeaders as Record<string, string>),
     },
-    ...options,
+    ...restOptions,
   });
 
   const data = await res.json();
@@ -151,7 +153,7 @@ async function request<T>(
       }
     }
 
-    // ── Parse error message smartly ────────────────────────────────
+    // ── Parse error message smartly ───────────────────────────────
     let message = `Request failed: ${res.status}`;
 
     if (data?.detail) {
@@ -251,14 +253,16 @@ export async function getInterviewList(token: string): Promise<InterviewListResp
   });
 }
 
-// ✅ Day 19 - Fixed to match actual backend response
-export interface InterviewQuestion {
-  id             : string;
-  question       : string;        // ← backend sends "question" not "question_text"
-  type           : string;        // ← backend sends "type" not "question_type"
-  difficulty     : string;
-  order_number   : number;
-  expected_points: string[];      // ← backend sends this too
+// ✅ Day 19
+export async function createInterview(
+  token : string,
+  data  : CreateInterviewData
+): Promise<CreateInterviewResponse> {
+  return request<CreateInterviewResponse>("/api/interview/create", {
+    method  : "POST",
+    headers : authHeader(token),
+    body    : JSON.stringify(data),
+  });
 }
 
 // ✅ Day 20
