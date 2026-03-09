@@ -49,22 +49,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   // ── Load from localStorage on mount ──────────────────────────────
+  // ✅ Day 20 fix: verify token is still valid on every page load
   useEffect(() => {
-    try {
-      const token   = localStorage.getItem(TOKEN_KEY);
-      const userStr = localStorage.getItem(USER_KEY);
+    const initAuth = async () => {
+      try {
+        const token   = localStorage.getItem(TOKEN_KEY);
+        const userStr = localStorage.getItem(USER_KEY);
 
-      if (token && userStr) {
-        const user = JSON.parse(userStr) as User;
-        setState({ user, token, loading: false });
-      } else {
+        if (token && userStr) {
+          try {
+            // ── Verify token against backend ──
+            const user = await getCurrentUser(token);
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+            setState({ user, token, loading: false });
+          } catch {
+            // ── Token expired or invalid → clear everything ──
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+            setState({ user: null, token: null, loading: false });
+          }
+        } else {
+          setState(prev => ({ ...prev, loading: false }));
+        }
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
         setState(prev => ({ ...prev, loading: false }));
       }
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-      setState(prev => ({ ...prev, loading: false }));
-    }
+    };
+
+    initAuth();
   }, []);
 
   // ── Login ─────────────────────────────────────────────────────────
@@ -93,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [state.token]);
 
-  // ── Refresh User ✅ Day 18 ────────────────────────────────────────
+  // ── Refresh User ✅ Day 18 + Day 20 fix ───────────────────────────
   const refreshUser = useCallback(async () => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return;
@@ -102,7 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       setState(prev => ({ ...prev, user }));
     } catch {
-      // Token may be expired — ignore silently
+      // ── Token expired → clear everything → force re-login ──
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      setState({ user: null, token: null, loading: false });
     }
   }, []);
 

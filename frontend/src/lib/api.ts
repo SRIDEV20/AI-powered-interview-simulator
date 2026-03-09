@@ -61,8 +61,8 @@ export interface UpdateProfileData {
 }
 
 // ✅ Day 19
-export type Difficulty    = "beginner" | "intermediate" | "advanced";
-export type QuestionType  = "technical" | "behavioral" | "mixed";
+export type Difficulty   = "beginner" | "intermediate" | "advanced";
+export type QuestionType = "technical" | "behavioral" | "mixed";
 
 export interface CreateInterviewData {
   job_role      : string;
@@ -81,14 +81,49 @@ export interface InterviewQuestion {
 }
 
 export interface CreateInterviewResponse {
-  interview_id  : string;
-  job_role      : string;
-  difficulty    : string;
-  question_type : string;
+  interview_id   : string;
+  job_role       : string;
+  difficulty     : string;
+  question_type  : string;
   total_questions: number;
+  status         : string;
+  created_at     : string;
+  questions      : InterviewQuestion[];
+}
+
+// ✅ Day 20
+export interface InterviewDetail {
+  interview_id   : string;
+  job_role       : string;
+  difficulty     : string;
+  question_type  : string;
+  total_questions: number;
+  status         : string;
+  overall_score  : number | null;
+  created_at     : string;
+  questions      : InterviewQuestion[];
+}
+
+export interface SubmitAnswerData {
+  user_answer         : string;
+  time_taken_seconds  : number;
+}
+
+export interface EvaluationResult {
+  question_id         : string;
+  score               : number;
+  feedback            : string;
+  strengths           : string[];
+  improvements        : string[];
+  sample_answer       : string;
+  time_taken_seconds  : number;
+}
+
+export interface CompleteInterviewResponse {
+  interview_id  : string;
   status        : string;
-  created_at    : string;
-  questions     : InterviewQuestion[];
+  overall_score : number;
+  message       : string;
 }
 
 // ── Helper ─────────────────────────────────────────────────────────
@@ -107,7 +142,38 @@ async function request<T>(
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data?.detail || `Request failed: ${res.status}`);
+    // ── Token expired → clear + redirect ──────────────────────────
+    if (res.status === 401) {
+      localStorage.removeItem("ai_interview_token");
+      localStorage.removeItem("ai_interview_user");
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+
+    // ── Parse error message smartly ────────────────────────────────
+    let message = `Request failed: ${res.status}`;
+
+    if (data?.detail) {
+      if (typeof data.detail === "string") {
+        // ✅ Normal string error
+        message = data.detail;
+      } else if (Array.isArray(data.detail)) {
+        // ✅ Pydantic validation error array
+        message = data.detail
+          .map((e: { msg?: string; message?: string }) =>
+            e.msg || e.message || JSON.stringify(e)
+          )
+          .join(", ");
+      } else {
+        // ✅ Fallback
+        message = JSON.stringify(data.detail);
+      }
+    } else if (data?.message) {
+      message = data.message;
+    }
+
+    throw new Error(message);
   }
 
   return data as T;
@@ -185,14 +251,51 @@ export async function getInterviewList(token: string): Promise<InterviewListResp
   });
 }
 
-// ✅ Day 19
-export async function createInterview(
-  token : string,
-  data  : CreateInterviewData
-): Promise<CreateInterviewResponse> {
-  return request<CreateInterviewResponse>("/api/interview/create", {
-    method  : "POST",
-    headers : authHeader(token),
-    body    : JSON.stringify(data),
+// ✅ Day 19 - Fixed to match actual backend response
+export interface InterviewQuestion {
+  id             : string;
+  question       : string;        // ← backend sends "question" not "question_text"
+  type           : string;        // ← backend sends "type" not "question_type"
+  difficulty     : string;
+  order_number   : number;
+  expected_points: string[];      // ← backend sends this too
+}
+
+// ✅ Day 20
+export async function getInterviewDetail(
+  token        : string,
+  interview_id : string
+): Promise<InterviewDetail> {
+  return request<InterviewDetail>(`/api/interview/${interview_id}`, {
+    headers: authHeader(token),
   });
+}
+
+export async function submitAnswer(
+  token        : string,
+  interview_id : string,
+  question_id  : string,
+  data         : SubmitAnswerData
+): Promise<EvaluationResult> {
+  return request<EvaluationResult>(
+    `/api/interview/${interview_id}/answer/${question_id}`,
+    {
+      method  : "POST",
+      headers : authHeader(token),
+      body    : JSON.stringify(data),
+    }
+  );
+}
+
+export async function completeInterview(
+  token        : string,
+  interview_id : string
+): Promise<CompleteInterviewResponse> {
+  return request<CompleteInterviewResponse>(
+    `/api/interview/${interview_id}/complete`,
+    {
+      method  : "PATCH",
+      headers : authHeader(token),
+    }
+  );
 }

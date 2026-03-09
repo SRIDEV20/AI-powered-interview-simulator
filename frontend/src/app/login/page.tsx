@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -26,11 +26,12 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  // Redirect if already logged in
-  if (isAuth) {
-    router.replace("/dashboard");
-    return null;
-  }
+  // ✅ Fix: useEffect instead of calling router during render
+  useEffect(() => {
+    if (isAuth) {
+      router.replace("/dashboard");
+    }
+  }, [isAuth, router]);
 
   // ── Validation ────────────────────────────────────────────────────
   const validate = (): boolean => {
@@ -79,6 +80,9 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // ── Don't render form if already auth (redirect in progress) ──────
+  if (isAuth) return null;
 
   // ─────────────────────────────────────────────────────────────────
   return (
