@@ -303,3 +303,62 @@ export async function completeInterview(
     }
   );
 }
+// ✅ Day 21 - Results Page Types
+export interface PerformanceInfo {
+  level   : string;
+  label   : string;
+  message : string;
+  color   : string;
+}
+
+export interface CategoryScore {
+  category       : string;
+  average_score  : number;
+  total_questions: number;
+  answered       : number;
+}
+
+export interface QuestionScore {
+  question_id  : string;
+  question_text: string;
+  question_type: string;
+  order_number : number;
+  score        : number;
+  feedback     : string;
+  strengths    : string[];
+  improvements : string[];
+  answered     : boolean;
+}
+
+export interface InterviewScoreResponse {
+  interview_id     : string;
+  job_role         : string;
+  difficulty       : string;
+  status           : string;
+  overall_score    : number;
+  performance      : PerformanceInfo;
+  total_questions  : number;
+  answered         : number;
+  skipped          : number;
+  completion_rate  : number;
+  category_scores  : CategoryScore[];
+  question_scores  : QuestionScore[];
+  overall_summary  : string;
+  top_strengths    : string[];
+  top_improvements : string[];
+  started_at       : string;
+  completed_at     : string;
+}
+
+// ✅ Day 21
+export async function getInterviewScore(
+  token        : string,
+  interview_id : string
+): Promise<InterviewScoreResponse> {
+  return request<InterviewScoreResponse>(
+    `/api/interview/${interview_id}/score`,
+    {
+      headers: authHeader(token),
+    }
+  );
+}
