@@ -362,3 +362,64 @@ export async function getInterviewScore(
     }
   );
 }
+// ── Day 22 - Skill Gap Types ───────────────────────────────────────
+export interface SkillGapItem {
+  id                : string;
+  skill_name        : string;
+  proficiency_level : "weak" | "moderate" | "strong";
+  gap_score         : number;
+  recommendation    : string | null;
+  identified_at     : string;
+}
+
+export interface SkillGapSummary {
+  skill_name        : string;
+  gap_score         : number;
+  proficiency_level : "weak" | "moderate" | "strong";
+  recommendation    : string | null;
+}
+
+export interface AnalyzeSkillGapsResponse {
+  interview_id    : string;
+  job_role        : string;
+  overall_score   : number | null;
+  total_skills    : number;
+  weak_skills     : number;
+  moderate_skills : number;
+  strong_skills   : number;
+  skill_gaps      : SkillGapSummary[];
+  analyzed_at     : string;
+}
+
+export interface UserSkillGapsResponse {
+  user_id        : string;
+  total_gaps     : number;
+  weak_count     : number;
+  moderate_count : number;
+  strong_count   : number;
+  skill_gaps     : SkillGapItem[];
+}
+
+// ── Day 22 - Skill Gap APIs ────────────────────────────────────────
+export async function analyzeSkillGaps(
+  token        : string,
+  interview_id : string,
+  force        : boolean = false
+): Promise<AnalyzeSkillGapsResponse> {
+  return request<AnalyzeSkillGapsResponse>(
+    `/api/skill-gaps/analyze/${interview_id}`,
+    {
+      method  : "POST",
+      headers : authHeader(token),
+      body    : JSON.stringify({ force_reanalyze: force }),
+    }
+  );
+}
+
+export async function getUserSkillGaps(
+  token: string
+): Promise<UserSkillGapsResponse> {
+  return request<UserSkillGapsResponse>("/api/skill-gaps/", {
+    headers: authHeader(token),
+  });
+}
