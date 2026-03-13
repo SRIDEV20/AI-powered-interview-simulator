@@ -332,3 +332,94 @@
   .newBtn     { width: 100%; text-align: center; }
   .welcome    { flex-direction: column; align-items: flex-start; }
 }
+/* ── Welcome Actions ──────────────────────────────────────────── */
+.welcomeActions {
+  display : flex;
+  gap     : 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.skillGapBtn {
+  padding      : 10px 20px;
+  background   : rgba(110, 168, 254, 0.1);
+  border       : 1px solid rgba(110, 168, 254, 0.3);
+  border-radius: 10px;
+  color        : var(--brand);
+  font-size    : 0.95rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  transition   : background 0.2s, transform 0.1s;
+  white-space  : nowrap;
+}
+
+.skillGapBtn:hover {
+  background: rgba(110, 168, 254, 0.18);
+  transform : translateY(-1px);
+}
+
+/* ── Quick Links ──────────────────────────────────────────────── */
+.quickLinks {
+  display             : grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap                 : 14px;
+}
+
+.quickCard {
+  display      : flex;
+  align-items  : center;
+  gap          : 12px;
+  background   : var(--panel);
+  border       : 1px solid var(--border);
+  border-radius: var(--radius);
+  padding      : 16px 18px;
+  cursor       : pointer;
+  transition   : border-color 0.2s, transform 0.1s;
+  text-align   : left;
+  box-shadow   : var(--shadow);
+}
+
+.quickCard:hover {
+  border-color: rgba(110, 168, 254, 0.3);
+  transform   : translateY(-2px);
+}
+
+.quickIcon  { font-size: 1.4rem; flex-shrink: 0; }
+
+.quickInfo {
+  display       : flex;
+  flex-direction: column;
+  gap           : 2px;
+  flex          : 1;
+}
+
+.quickTitle {
+  font-size  : 0.9rem;
+  font-weight: 700;
+  color      : var(--text);
+}
+
+.quickSub {
+  font-size: 0.75rem;
+  color    : var(--muted);
+}
+
+.quickArrow {
+  color    : var(--muted);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* ── View Arrow in history ────────────────────────────────────── */
+.viewArrow {
+  color    : var(--muted);
+  font-size: 1rem;
+  margin-left: 4px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .quickLinks      { grid-template-columns: 1fr; }
+  .welcomeActions  { flex-direction: column; width: 100%; }
+  .skillGapBtn     { width: 100%; text-align: center; }
+}

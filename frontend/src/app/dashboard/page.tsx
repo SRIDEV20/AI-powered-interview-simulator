@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { getUserStats, getInterviewList, UserStats, InterviewSummary } from "@/lib/api";
@@ -38,6 +39,7 @@ function getScoreColor(score: number): string {
 // ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user, token } = useAuth();
+  const router          = useRouter();
 
   const [stats,      setStats]      = useState<UserStats | null>(null);
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
@@ -83,9 +85,19 @@ export default function DashboardPage() {
                 Ready to practice? Let&apos;s sharpen your interview skills today.
               </p>
             </div>
-            <Link href="/interview/setup" className={styles.newBtn}>
-              + New Interview
-            </Link>
+
+            {/* ── Action Buttons ── */}
+            <div className={styles.welcomeActions}>
+              <Link href="/interview/setup" className={styles.newBtn}>
+                🚀 New Interview
+              </Link>
+              <button
+                onClick   = {() => router.push("/skill-gaps")}
+                className = {styles.skillGapBtn}
+              >
+                🎯 Skill Gaps
+              </button>
+            </div>
           </div>
 
           {/* ── Error ── */}
@@ -119,9 +131,13 @@ export default function DashboardPage() {
                 <div className={styles.statIcon}>📊</div>
                 <div
                   className={styles.statValue}
-                  style={{ color: stats.average_score > 0 ? getScoreColor(stats.average_score) : "var(--muted)" }}
+                  style={{ color: stats.average_score > 0
+                    ? getScoreColor(stats.average_score)
+                    : "var(--muted)" }}
                 >
-                  {stats.average_score > 0 ? `${stats.average_score.toFixed(1)}%` : "—"}
+                  {stats.average_score > 0
+                    ? `${stats.average_score.toFixed(1)}%`
+                    : "—"}
                 </div>
                 <div className={styles.statLabel}>Average Score</div>
               </div>
@@ -130,15 +146,64 @@ export default function DashboardPage() {
                 <div className={styles.statIcon}>🏆</div>
                 <div
                   className={styles.statValue}
-                  style={{ color: stats.best_score > 0 ? getScoreColor(stats.best_score) : "var(--muted)" }}
+                  style={{ color: stats.best_score > 0
+                    ? getScoreColor(stats.best_score)
+                    : "var(--muted)" }}
                 >
-                  {stats.best_score > 0 ? `${stats.best_score.toFixed(1)}%` : "—"}
+                  {stats.best_score > 0
+                    ? `${stats.best_score.toFixed(1)}%`
+                    : "—"}
                 </div>
                 <div className={styles.statLabel}>Best Score</div>
               </div>
 
             </div>
           )}
+
+          {/* ── Quick Links ── */}
+          <div className={styles.quickLinks}>
+            <button
+              onClick   = {() => router.push("/skill-gaps")}
+              className = {styles.quickCard}
+            >
+              <span className={styles.quickIcon}>🎯</span>
+              <div className={styles.quickInfo}>
+                <span className={styles.quickTitle}>Skill Gap Analysis</span>
+                <span className={styles.quickSub}>
+                  See your strengths & weak areas
+                </span>
+              </div>
+              <span className={styles.quickArrow}>→</span>
+            </button>
+
+            <button
+              onClick   = {() => router.push("/interview/setup")}
+              className = {styles.quickCard}
+            >
+              <span className={styles.quickIcon}>🎤</span>
+              <div className={styles.quickInfo}>
+                <span className={styles.quickTitle}>Practice Interview</span>
+                <span className={styles.quickSub}>
+                  Start a new AI mock interview
+                </span>
+              </div>
+              <span className={styles.quickArrow}>→</span>
+            </button>
+
+            <button
+              onClick   = {() => router.push("/profile")}
+              className = {styles.quickCard}
+            >
+              <span className={styles.quickIcon}>👤</span>
+              <div className={styles.quickInfo}>
+                <span className={styles.quickTitle}>Your Profile</span>
+                <span className={styles.quickSub}>
+                  View and edit your profile
+                </span>
+              </div>
+              <span className={styles.quickArrow}>→</span>
+            </button>
+          </div>
 
           {/* ── Interview History ── */}
           <div className={styles.section}>
@@ -171,24 +236,44 @@ export default function DashboardPage() {
               /* ── Interview List ── */
               <div className={styles.historyList}>
                 {interviews.map((iv) => (
-                  <div key={iv.interview_id} className={styles.historyCard}>
-
+                  <div
+                    key       = {iv.interview_id}
+                    className = {styles.historyCard}
+                    onClick   = {() => {
+                      if (iv.status === "completed") {
+                        router.push(`/results/${iv.interview_id}`);
+                      } else if (iv.status === "in_progress") {
+                        router.push(`/interview/${iv.interview_id}`);
+                      }
+                    }}
+                    style={{
+                      cursor: iv.status === "completed" || iv.status === "in_progress"
+                        ? "pointer"
+                        : "default"
+                    }}
+                  >
                     {/* Left */}
                     <div className={styles.historyLeft}>
                       <div className={styles.historyRole}>{iv.job_role}</div>
                       <div className={styles.historyMeta}>
                         <span
                           className={styles.badge}
-                          style={{ color: getDifficultyColor(iv.difficulty),
-                                   borderColor: getDifficultyColor(iv.difficulty) + "44",
-                                   background : getDifficultyColor(iv.difficulty) + "15" }}
+                          style={{
+                            color      : getDifficultyColor(iv.difficulty),
+                            borderColor: getDifficultyColor(iv.difficulty) + "44",
+                            background : getDifficultyColor(iv.difficulty) + "15",
+                          }}
                         >
                           {iv.difficulty}
                         </span>
                         <span className={styles.metaDot}>·</span>
-                        <span className={styles.metaText}>{iv.total_questions} questions</span>
+                        <span className={styles.metaText}>
+                          {iv.total_questions} questions
+                        </span>
                         <span className={styles.metaDot}>·</span>
-                        <span className={styles.metaText}>{formatDate(iv.created_at)}</span>
+                        <span className={styles.metaText}>
+                          {formatDate(iv.created_at)}
+                        </span>
                       </div>
                     </div>
 
@@ -211,13 +296,20 @@ export default function DashboardPage() {
                       {/* Status badge */}
                       <span
                         className={styles.statusBadge}
-                        style={{ color: getStatusColor(iv.status),
-                                 borderColor: getStatusColor(iv.status) + "44",
-                                 background : getStatusColor(iv.status) + "15" }}
+                        style={{
+                          color      : getStatusColor(iv.status),
+                          borderColor: getStatusColor(iv.status) + "44",
+                          background : getStatusColor(iv.status) + "15",
+                        }}
                       >
                         {iv.status === "in_progress" ? "In Progress" :
                          iv.status === "completed"   ? "Completed"   : "Abandoned"}
                       </span>
+
+                      {/* View Arrow */}
+                      {(iv.status === "completed" || iv.status === "in_progress") && (
+                        <span className={styles.viewArrow}>→</span>
+                      )}
                     </div>
 
                   </div>
