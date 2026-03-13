@@ -1,5 +1,9 @@
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+// ── Day 24: Auth Event ─────────────────────────────────────────────
+// Fired when API returns 401 so AuthContext/ProtectedRoute can react globally.
+export const AUTH_LOGOUT_EVENT = "ai_interview:logout";
+
 // ── Types ──────────────────────────────────────────────────────────
 export interface User {
   id         : string;
@@ -133,6 +137,7 @@ async function request<T>(
   options  : RequestInit = {}
 ): Promise<T> {
   const { headers: optHeaders, ...restOptions } = options;
+
   const res = await fetch(`${baseUrl}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
@@ -141,15 +146,19 @@ async function request<T>(
     ...restOptions,
   });
 
-  const data = await res.json();
+  // Try to parse JSON safely (some errors may return empty bodies)
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
 
   if (!res.ok) {
-    // ── Token expired → clear + redirect ──────────────────────────
+    // ── Token expired/invalid → notify app globally (Day 24) ───────
     if (res.status === 401) {
-      localStorage.removeItem("ai_interview_token");
-      localStorage.removeItem("ai_interview_user");
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
       }
     }
 
@@ -158,21 +167,20 @@ async function request<T>(
 
     if (data?.detail) {
       if (typeof data.detail === "string") {
-        // ✅ Normal string error
         message = data.detail;
       } else if (Array.isArray(data.detail)) {
-        // ✅ Pydantic validation error array
         message = data.detail
           .map((e: { msg?: string; message?: string }) =>
             e.msg || e.message || JSON.stringify(e)
           )
           .join(", ");
       } else {
-        // ✅ Fallback
         message = JSON.stringify(data.detail);
       }
     } else if (data?.message) {
       message = data.message;
+    } else if (typeof data === "string" && data.trim().length > 0) {
+      message = data;
     }
 
     throw new Error(message);
@@ -303,6 +311,7 @@ export async function completeInterview(
     }
   );
 }
+
 // ✅ Day 21 - Results Page Types
 export interface PerformanceInfo {
   level   : string;
@@ -362,6 +371,7 @@ export async function getInterviewScore(
     }
   );
 }
+
 // ── Day 22 - Skill Gap Types ───────────────────────────────────────
 export interface SkillGapItem {
   id                : string;

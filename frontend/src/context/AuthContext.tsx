@@ -16,6 +16,7 @@ import {
   getCurrentUser,
   LoginData,
   RegisterData,
+  AUTH_LOGOUT_EVENT, // ✅ Day 24
 } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (data: LoginData) => {
     const res = await loginUser(data);
     localStorage.setItem(TOKEN_KEY, res.access_token);
-    localStorage.setItem(USER_KEY,  JSON.stringify(res.user));
+    localStorage.setItem(USER_KEY, JSON.stringify(res.user));
     setState({ user: res.user, token: res.access_token, loading: false });
   }, []);
 
@@ -114,13 +115,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const user = await getCurrentUser(token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      setState(prev => ({ ...prev, user }));
+      setState(prev => ({ ...prev, user, token }));
     } catch {
-      // ── Token expired → clear everything → force re-login ──
+      // ��─ Token expired → clear everything → force re-login ──
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       setState({ user: null, token: null, loading: false });
     }
+  }, []);
+
+  // ── Day 24: Auto-logout on 401 from API ──────────────────────────
+  useEffect(() => {
+    const handler = () => {
+      // Token is invalid/expired. Clear local state + storage.
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      setState({ user: null, token: null, loading: false });
+    };
+
+    window.addEventListener(AUTH_LOGOUT_EVENT, handler);
+    return () => window.removeEventListener(AUTH_LOGOUT_EVENT, handler);
   }, []);
 
   // ─────────────────────────────────────────────────────────────────

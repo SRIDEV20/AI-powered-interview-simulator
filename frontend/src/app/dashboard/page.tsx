@@ -5,13 +5,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { getUserStats, getInterviewList, UserStats, InterviewSummary } from "@/lib/api";
+import {
+  getUserStats,
+  getInterviewList,
+  UserStats,
+  InterviewSummary,
+} from "@/lib/api";
 import styles from "./page.module.css";
 
 // ── Helpers ────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
+    month: "short",
+    day  : "numeric",
+    year : "numeric",
   });
 }
 
@@ -34,6 +41,18 @@ function getScoreColor(score: number): string {
   if (score >= 70) return "#6ea8fe";
   if (score >= 50) return "#eab308";
   return "#ef4444";
+}
+
+function getHistoryActionLabel(status: string): string {
+  if (status === "completed")   return "View Results";
+  if (status === "in_progress") return "Resume";
+  return "Unavailable";
+}
+
+function getHistoryHref(iv: InterviewSummary): string | null {
+  if (iv.status === "completed") return `/results/${iv.interview_id}`;
+  if (iv.status === "in_progress") return `/interview/${iv.interview_id}`;
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -91,12 +110,9 @@ export default function DashboardPage() {
               <Link href="/interview/setup" className={styles.newBtn}>
                 🚀 New Interview
               </Link>
-              <button
-                onClick   = {() => router.push("/skill-gaps")}
-                className = {styles.skillGapBtn}
-              >
+              <Link href="/skill-gaps" className={styles.skillGapBtn}>
                 🎯 Skill Gaps
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -131,13 +147,13 @@ export default function DashboardPage() {
                 <div className={styles.statIcon}>📊</div>
                 <div
                   className={styles.statValue}
-                  style={{ color: stats.average_score > 0
-                    ? getScoreColor(stats.average_score)
-                    : "var(--muted)" }}
+                  style={{
+                    color: stats.average_score > 0
+                      ? getScoreColor(stats.average_score)
+                      : "var(--muted)"
+                  }}
                 >
-                  {stats.average_score > 0
-                    ? `${stats.average_score.toFixed(1)}%`
-                    : "—"}
+                  {stats.average_score > 0 ? `${stats.average_score.toFixed(1)}%` : "—"}
                 </div>
                 <div className={styles.statLabel}>Average Score</div>
               </div>
@@ -146,13 +162,13 @@ export default function DashboardPage() {
                 <div className={styles.statIcon}>🏆</div>
                 <div
                   className={styles.statValue}
-                  style={{ color: stats.best_score > 0
-                    ? getScoreColor(stats.best_score)
-                    : "var(--muted)" }}
+                  style={{
+                    color: stats.best_score > 0
+                      ? getScoreColor(stats.best_score)
+                      : "var(--muted)"
+                  }}
                 >
-                  {stats.best_score > 0
-                    ? `${stats.best_score.toFixed(1)}%`
-                    : "—"}
+                  {stats.best_score > 0 ? `${stats.best_score.toFixed(1)}%` : "—"}
                 </div>
                 <div className={styles.statLabel}>Best Score</div>
               </div>
@@ -162,47 +178,32 @@ export default function DashboardPage() {
 
           {/* ── Quick Links ── */}
           <div className={styles.quickLinks}>
-            <button
-              onClick   = {() => router.push("/skill-gaps")}
-              className = {styles.quickCard}
-            >
+            <Link href="/skill-gaps" className={styles.quickCard}>
               <span className={styles.quickIcon}>🎯</span>
               <div className={styles.quickInfo}>
                 <span className={styles.quickTitle}>Skill Gap Analysis</span>
-                <span className={styles.quickSub}>
-                  See your strengths & weak areas
-                </span>
+                <span className={styles.quickSub}>See your strengths & weak areas</span>
               </div>
               <span className={styles.quickArrow}>→</span>
-            </button>
+            </Link>
 
-            <button
-              onClick   = {() => router.push("/interview/setup")}
-              className = {styles.quickCard}
-            >
+            <Link href="/interview/setup" className={styles.quickCard}>
               <span className={styles.quickIcon}>🎤</span>
               <div className={styles.quickInfo}>
                 <span className={styles.quickTitle}>Practice Interview</span>
-                <span className={styles.quickSub}>
-                  Start a new AI mock interview
-                </span>
+                <span className={styles.quickSub}>Start a new AI mock interview</span>
               </div>
               <span className={styles.quickArrow}>→</span>
-            </button>
+            </Link>
 
-            <button
-              onClick   = {() => router.push("/profile")}
-              className = {styles.quickCard}
-            >
+            <Link href="/profile" className={styles.quickCard}>
               <span className={styles.quickIcon}>👤</span>
               <div className={styles.quickInfo}>
                 <span className={styles.quickTitle}>Your Profile</span>
-                <span className={styles.quickSub}>
-                  View and edit your profile
-                </span>
+                <span className={styles.quickSub}>View and edit your profile</span>
               </div>
               <span className={styles.quickArrow}>→</span>
-            </button>
+            </Link>
           </div>
 
           {/* ── Interview History ── */}
@@ -221,7 +222,6 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : interviews.length === 0 ? (
-              /* ── Empty State ── */
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>🎤</div>
                 <h3 className={styles.emptyTitle}>No interviews yet</h3>
@@ -233,87 +233,104 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              /* ── Interview List ── */
               <div className={styles.historyList}>
-                {interviews.map((iv) => (
-                  <div
-                    key       = {iv.interview_id}
-                    className = {styles.historyCard}
-                    onClick   = {() => {
-                      if (iv.status === "completed") {
-                        router.push(`/results/${iv.interview_id}`);
-                      } else if (iv.status === "in_progress") {
-                        router.push(`/interview/${iv.interview_id}`);
-                      }
-                    }}
-                    style={{
-                      cursor: iv.status === "completed" || iv.status === "in_progress"
-                        ? "pointer"
-                        : "default"
-                    }}
-                  >
-                    {/* Left */}
-                    <div className={styles.historyLeft}>
-                      <div className={styles.historyRole}>{iv.job_role}</div>
-                      <div className={styles.historyMeta}>
+                {interviews.map((iv) => {
+                  const href      = getHistoryHref(iv);
+                  const clickable = Boolean(href);
+                  const action    = getHistoryActionLabel(iv.status);
+
+                  const cardInner = (
+                    <>
+                      {/* Left */}
+                      <div className={styles.historyLeft}>
+                        <div className={styles.historyRole}>{iv.job_role}</div>
+                        <div className={styles.historyMeta}>
+                          <span
+                            className={styles.badge}
+                            style={{
+                              color      : getDifficultyColor(iv.difficulty),
+                              borderColor: getDifficultyColor(iv.difficulty) + "44",
+                              background : getDifficultyColor(iv.difficulty) + "15",
+                            }}
+                          >
+                            {iv.difficulty}
+                          </span>
+                          <span className={styles.metaDot}>·</span>
+                          <span className={styles.metaText}>{iv.total_questions} questions</span>
+                          <span className={styles.metaDot}>·</span>
+                          <span className={styles.metaText}>{formatDate(iv.created_at)}</span>
+                        </div>
+                      </div>
+
+                      {/* Right */}
+                      <div className={styles.historyRight}>
+                        {/* Score */}
+                        <div className={styles.scoreBox}>
+                          {iv.overall_score !== null ? (
+                            <span
+                              className={styles.score}
+                              style={{ color: getScoreColor(iv.overall_score) }}
+                            >
+                              {iv.overall_score.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className={styles.scorePending}>—</span>
+                          )}
+                        </div>
+
+                        {/* Status badge */}
                         <span
-                          className={styles.badge}
+                          className={styles.statusBadge}
                           style={{
-                            color      : getDifficultyColor(iv.difficulty),
-                            borderColor: getDifficultyColor(iv.difficulty) + "44",
-                            background : getDifficultyColor(iv.difficulty) + "15",
+                            color      : getStatusColor(iv.status),
+                            borderColor: getStatusColor(iv.status) + "44",
+                            background : getStatusColor(iv.status) + "15",
                           }}
                         >
-                          {iv.difficulty}
+                          {iv.status === "in_progress" ? "In Progress" :
+                           iv.status === "completed"   ? "Completed"   : "Abandoned"}
                         </span>
-                        <span className={styles.metaDot}>·</span>
-                        <span className={styles.metaText}>
-                          {iv.total_questions} questions
-                        </span>
-                        <span className={styles.metaDot}>·</span>
-                        <span className={styles.metaText}>
-                          {formatDate(iv.created_at)}
-                        </span>
-                      </div>
-                    </div>
 
-                    {/* Right */}
-                    <div className={styles.historyRight}>
-                      {/* Score */}
-                      <div className={styles.scoreBox}>
-                        {iv.overall_score !== null ? (
-                          <span
-                            className={styles.score}
-                            style={{ color: getScoreColor(iv.overall_score) }}
-                          >
-                            {iv.overall_score.toFixed(1)}%
-                          </span>
-                        ) : (
-                          <span className={styles.scorePending}>—</span>
-                        )}
-                      </div>
+                        {/* Action label */}
+                        <span
+                          className={styles.actionPill}
+                          aria-hidden="true"
+                        >
+                          {action}
+                        </span>
 
-                      {/* Status badge */}
-                      <span
-                        className={styles.statusBadge}
-                        style={{
-                          color      : getStatusColor(iv.status),
-                          borderColor: getStatusColor(iv.status) + "44",
-                          background : getStatusColor(iv.status) + "15",
-                        }}
+                        {/* Arrow */}
+                        {clickable && <span className={styles.viewArrow}>→</span>}
+                      </div>
+                    </>
+                  );
+
+                  // If clickable, render as a Link for accessibility
+                  if (href) {
+                    return (
+                      <Link
+                        key={iv.interview_id}
+                        href={href}
+                        className={`${styles.historyCard} ${styles.historyCardClickable}`}
                       >
-                        {iv.status === "in_progress" ? "In Progress" :
-                         iv.status === "completed"   ? "Completed"   : "Abandoned"}
-                      </span>
+                        {cardInner}
+                      </Link>
+                    );
+                  }
 
-                      {/* View Arrow */}
-                      {(iv.status === "completed" || iv.status === "in_progress") && (
-                        <span className={styles.viewArrow}>→</span>
-                      )}
+                  // Not clickable (abandoned) - render as a div but styled disabled
+                  return (
+                    <div
+                      key={iv.interview_id}
+                      className={`${styles.historyCard} ${styles.historyCardDisabled}`}
+                      role="group"
+                      aria-label={`${iv.job_role} interview (abandoned)`}
+                      onClick={() => router.push("/dashboard")}
+                    >
+                      {cardInner}
                     </div>
-
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

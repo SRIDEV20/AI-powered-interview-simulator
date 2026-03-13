@@ -28,6 +28,34 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function draftKey(interviewId: string, questionId: string): string {
+  return `draft:${interviewId}:${questionId}`;
+}
+
+function safeGetLocalStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetLocalStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore (private mode / storage disabled)
+  }
+}
+
+function safeRemoveLocalStorage(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 export default function InterviewSessionPage() {
   const { token }   = useAuth();
@@ -48,9 +76,12 @@ export default function InterviewSessionPage() {
   const [phase, setPhase] = useState<"answering" | "feedback" | "finished">("answering");
 
   // ── Timer ─────────────────────────────────────────────────────
-  const [elapsed,    setElapsed]   = useState(0);
-  const timerRef                   = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef               = useRef<number>(Date.now());
+  const [elapsed,  setElapsed] = useState(0);
+  const timerRef               = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef           = useRef<number>(Date.now());
+
+  // Draft restore guard (prevents overwriting when switching quickly)
+  const lastLoadedDraftKeyRef  = useRef<string | null>(null);
 
   const startTimer = useCallback(() => {
     startTimeRef.current = Date.now();
@@ -73,7 +104,6 @@ export default function InterviewSessionPage() {
     const load = async () => {
       try {
         const data = await getInterviewDetail(token, interviewId);
-        // Sort questions by order_number
         data.questions.sort((a, b) => a.order_number - b.order_number);
         setInterview(data);
       } catch (err: unknown) {
@@ -85,6 +115,13 @@ export default function InterviewSessionPage() {
     load();
   }, [token, interviewId]);
 
+  // ── Current question ───────────────────────────────────────────
+  const questions = interview?.questions ?? [];
+  const currentQ  = questions[currentIdx] as InterviewQuestion | undefined;
+  const totalQ    = questions.length;
+  const isLastQ   = currentIdx === totalQ - 1;
+  const progress  = totalQ > 0 ? (currentIdx / totalQ) * 100 : 0;
+
   // ── Start timer when answering phase begins ────────────────────
   useEffect(() => {
     if (!loading && phase === "answering") {
@@ -93,12 +130,38 @@ export default function InterviewSessionPage() {
     return () => stopTimer();
   }, [currentIdx, loading, phase, startTimer, stopTimer]);
 
-  // ── Current question ───────────────────────────────────────────
-  const questions = interview?.questions ?? [];
-  const currentQ  = questions[currentIdx] as InterviewQuestion | undefined;
-  const totalQ    = questions.length;
-  const isLastQ   = currentIdx === totalQ - 1;
-  const progress  = totalQ > 0 ? (currentIdx / totalQ) * 100 : 0;
+  // ── Restore draft when current question changes (only in answering) ──
+  useEffect(() => {
+    if (!interviewId || !currentQ) return;
+
+    // Only restore drafts while user is typing answers (not feedback/finished)
+    if (phase !== "answering") return;
+
+    const key = draftKey(interviewId, currentQ.id);
+    const saved = safeGetLocalStorage(key);
+
+    // Avoid re-loading same draft repeatedly
+    if (lastLoadedDraftKeyRef.current !== key) {
+      lastLoadedDraftKeyRef.current = key;
+      setAnswer(saved ?? "");
+    }
+  }, [interviewId, currentQ?.id, phase]);
+
+  // ── Autosave draft as user types (only in answering) ────────────
+  useEffect(() => {
+    if (!interviewId || !currentQ) return;
+    if (phase !== "answering") return;
+
+    const key = draftKey(interviewId, currentQ.id);
+
+    // If empty, remove draft to keep storage clean
+    if (!answer || answer.trim().length === 0) {
+      safeRemoveLocalStorage(key);
+      return;
+    }
+
+    safeSetLocalStorage(key, answer);
+  }, [answer, interviewId, currentQ?.id, phase]);
 
   // ── Submit Answer ──────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -114,6 +177,9 @@ export default function InterviewSessionPage() {
         time_taken_seconds : elapsed,
       });
 
+      // Clear draft after successful submit
+      safeRemoveLocalStorage(draftKey(interviewId, currentQ.id));
+
       setEvaluation(result);
       setAllEvals(prev => [...prev, result]);
       setPhase("feedback");
@@ -125,12 +191,22 @@ export default function InterviewSessionPage() {
     }
   };
 
-  // ── Next Question ─────────��────────────────────────────────────
+  // ── Next Question ──────────────────────────────────────────────
   const handleNext = async () => {
     if (isLastQ) {
       setCompleting(true);
       try {
         await completeInterview(token!, interviewId);
+
+        // Optional cleanup: remove any remaining drafts for this interview
+        try {
+          for (const q of questions) {
+            safeRemoveLocalStorage(draftKey(interviewId, q.id));
+          }
+        } catch {
+          // ignore
+        }
+
         setPhase("finished");
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to complete interview");
@@ -139,9 +215,12 @@ export default function InterviewSessionPage() {
       }
     } else {
       setCurrentIdx(prev => prev + 1);
-      setAnswer("");
       setEvaluation(null);
       setPhase("answering");
+
+      // Do NOT blindly setAnswer("") here; draft restore effect will load it.
+      // But we should clear any transient loaded-key guard so restore runs for next Q.
+      lastLoadedDraftKeyRef.current = null;
     }
   };
 
@@ -212,9 +291,15 @@ export default function InterviewSessionPage() {
               <div className={styles.finishedStat}>
                 <span
                   className={styles.finishedStatVal}
-                  style={{ color: getScoreColor(Math.max(...allEvals.map(e => e.score))) }}
+                  style={{
+                    color: allEvals.length
+                      ? getScoreColor(Math.max(...allEvals.map(e => e.score)))
+                      : "var(--muted)"
+                  }}
                 >
-                  {Math.max(...allEvals.map(e => e.score)).toFixed(1)}%
+                  {allEvals.length
+                    ? `${Math.max(...allEvals.map(e => e.score)).toFixed(1)}%`
+                    : "—"}
                 </span>
                 <span className={styles.finishedStatLabel}>Best Answer</span>
               </div>
@@ -286,12 +371,9 @@ export default function InterviewSessionPage() {
               {/* Question */}
               <div className={styles.questionSection}>
                 <div className={styles.questionMeta}>
-                  {/* ✅ Fixed: type not question_type */}
                   <span className={styles.qTypeBadge}>{currentQ.type}</span>
-                  {/* ✅ Fixed: difficulty not skill_category */}
                   <span className={styles.qCatBadge}>{currentQ.difficulty}</span>
                 </div>
-                {/* ✅ Fixed: question not question_text */}
                 <h2 className={styles.questionText}>{currentQ.question}</h2>
               </div>
 
@@ -338,7 +420,6 @@ export default function InterviewSessionPage() {
               {/* Question recap */}
               <div className={styles.questionRecap}>
                 <span className={styles.recapLabel}>Q{currentIdx + 1}:</span>
-                {/* ✅ Fixed: question not question_text */}
                 <span className={styles.recapText}>{currentQ.question}</span>
               </div>
 
