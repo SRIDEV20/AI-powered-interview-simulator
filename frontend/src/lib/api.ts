@@ -131,6 +131,16 @@ export interface CompleteInterviewResponse {
   message       : string;
 }
 
+interface ApiErrorItem {
+  msg?: string;
+  message?: string;
+}
+
+interface ApiErrorPayload {
+  detail?: string | ApiErrorItem[] | Record<string, unknown>;
+  message?: string;
+}
+
 // ── Helper ─────────────────────────────────────────────────────────
 async function request<T>(
   endpoint : string,
@@ -147,7 +157,7 @@ async function request<T>(
   });
 
   // Try to parse JSON safely (some errors may return empty bodies)
-  let data: any = null;
+  let data: unknown = null;
   try {
     data = await res.json();
   } catch {
@@ -165,20 +175,20 @@ async function request<T>(
     // ── Parse error message smartly ───────────────────────────────
     let message = `Request failed: ${res.status}`;
 
-    if (data?.detail) {
-      if (typeof data.detail === "string") {
-        message = data.detail;
-      } else if (Array.isArray(data.detail)) {
-        message = data.detail
-          .map((e: { msg?: string; message?: string }) =>
-            e.msg || e.message || JSON.stringify(e)
-          )
+    const payload = data as ApiErrorPayload | null;
+
+    if (payload?.detail) {
+      if (typeof payload.detail === "string") {
+        message = payload.detail;
+      } else if (Array.isArray(payload.detail)) {
+        message = payload.detail
+          .map((e) => e.msg || e.message || JSON.stringify(e))
           .join(", ");
       } else {
-        message = JSON.stringify(data.detail);
+        message = JSON.stringify(payload.detail);
       }
-    } else if (data?.message) {
-      message = data.message;
+    } else if (typeof payload?.message === "string") {
+      message = payload.message;
     } else if (typeof data === "string" && data.trim().length > 0) {
       message = data;
     }

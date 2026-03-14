@@ -18,7 +18,7 @@ from app.models import User, Interview, Question, Response, SkillGap
 config = context.config
 
 # Set the database URL from our settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.sqlalchemy_database_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

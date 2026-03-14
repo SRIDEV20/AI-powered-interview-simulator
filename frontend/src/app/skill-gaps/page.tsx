@@ -11,6 +11,9 @@ import {
 } from "@/lib/api";
 import styles from "./page.module.css";
 
+const CACHE_KEY = "ai_skill_gaps_cache_v1";
+const CACHE_TTL_MS = 60 * 1000;
+
 // ── Helpers ────────────────────────────────────────────────────────
 function getLevelColor(level: string): string {
   if (level === "strong")   return "#22c55e";
@@ -140,10 +143,6 @@ export default function SkillGapsPage() {
   const [error,      setError]      = useState<string | null>(null);
   const [filter,     setFilter]     = useState<"all" | "weak" | "moderate" | "strong">("all");
   const [refreshing, setRefreshing] = useState(false);
-
-  // Day 25: cache skill gaps (avoid refetch on every navigation)
-  const CACHE_KEY = "ai_skill_gaps_cache_v1";
-  const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
   useEffect(() => {
     if (!token) return;

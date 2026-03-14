@@ -57,8 +57,8 @@ function safeRemoveLocalStorage(key: string): void {
 }
 
 // Small debounce helper for draft writes
-function useDebouncedCallback<T extends (...args: any[]) => void>(
-  cb: T,
+function useDebouncedCallback<TArgs extends unknown[]>(
+  cb: (...args: TArgs) => void,
   delayMs: number
 ) {
   const cbRef = useRef(cb);
@@ -68,7 +68,7 @@ function useDebouncedCallback<T extends (...args: any[]) => void>(
     cbRef.current = cb;
   }, [cb]);
 
-  const debounced = useCallback((...args: Parameters<T>) => {
+  const debounced = useCallback((...args: TArgs) => {
     if (tRef.current) clearTimeout(tRef.current);
     tRef.current = setTimeout(() => cbRef.current(...args), delayMs);
   }, [delayMs]);
@@ -174,7 +174,7 @@ export default function InterviewSessionPage() {
       setAnswer(saved ?? "");
       setDraftStatus(saved ? "saved" : "idle");
     }
-  }, [interviewId, currentQ?.id, phase]);
+  }, [interviewId, currentQ, phase]);
 
   // Debounced localStorage write (Day 25)
   const debouncedSaveDraft = useDebouncedCallback((key: string, value: string) => {
@@ -199,7 +199,7 @@ export default function InterviewSessionPage() {
     // Set saving state immediately, actual write is debounced
     setDraftStatus("saving");
     debouncedSaveDraft(key, answer);
-  }, [answer, interviewId, currentQ?.id, phase, debouncedSaveDraft]);
+  }, [answer, interviewId, currentQ, phase, debouncedSaveDraft]);
 
   // ── Submit Answer ──────────────────────────────────────────────
   const handleSubmit = async () => {

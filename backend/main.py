@@ -6,10 +6,6 @@ from app.api.auth import router as auth_router
 from app.api.user import router as user_router              # ✅ Day 8
 from app.api.interview import router as interview_router    # ✅ Day 10
 from app.api.skill_gap import router as skill_gap_router    # ✅ Day 14 NEW
-from app.core.database import engine, Base
-
-# Create all database tables
-Base.metadata.create_all(bind=engine)
 
 # Create FastAPI app instance
 app = FastAPI(

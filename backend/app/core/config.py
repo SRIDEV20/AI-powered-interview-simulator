@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from typing import List
 
 
 class Settings(BaseSettings):
@@ -31,6 +30,14 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4"
     OPENAI_MAX_TOKENS: int = 1000
     OPENAI_TEMPERATURE: float = 0.7
+
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        if self.DATABASE_URL.startswith("postgresql://") and "+" not in self.DATABASE_URL.split("://", 1)[0]:
+            return self.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+        if self.DATABASE_URL.startswith("postgres://"):
+            return self.DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+        return self.DATABASE_URL
 
     class Config:
         env_file = ".env"

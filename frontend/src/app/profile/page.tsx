@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -395,8 +396,8 @@ export default function ProfilePage() {
               {/* ── Quick Links ── */}
               <div className={styles.quickLinks}>
                 <h3 className={styles.quickTitle}>Quick Actions</h3>
-                <a href="/dashboard"       className={styles.quickLink}>📋 View Dashboard</a>
-                <a href="/interview/setup" className={styles.quickLink}>🎤 New Interview</a>
+                <Link href="/dashboard" className={styles.quickLink}>📋 View Dashboard</Link>
+                <Link href="/interview/setup" className={styles.quickLink}>🎤 New Interview</Link>
               </div>
 
             </div>
