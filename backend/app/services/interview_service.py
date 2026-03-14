@@ -337,9 +337,10 @@ Rules:
     def complete_interview(
         self,
         interview_id : str,
+        user_id      : str,
         db           : Session
     ) -> dict:
-        """Mark interview as completed"""
+        """Mark interview as completed (idempotent, owner-only)."""
 
         interview = db.query(Interview).filter(
             Interview.id == uuid.UUID(interview_id)
@@ -348,8 +349,20 @@ Rules:
         if not interview:
             raise ValueError(f"Interview {interview_id} not found")
 
-        interview.status       = InterviewStatus.COMPLETED
-        interview.completed_at = datetime.utcnow()
+        if str(interview.user_id) != user_id:
+            raise PermissionError("You are not allowed to complete this interview")
+
+        # Safety repair for legacy rows where started_at was missing.
+        if interview.started_at is None:
+            interview.started_at = datetime.utcnow()
+
+        interview.status = InterviewStatus.COMPLETED
+        if interview.completed_at is None:
+            interview.completed_at = datetime.utcnow()
+
+        # Prevent negative duration due to inconsistent historical timestamps.
+        if interview.completed_at < interview.started_at:
+            interview.completed_at = interview.started_at
 
         db.commit()
         db.refresh(interview)

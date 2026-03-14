@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -109,43 +109,130 @@ function SkillBar({ gap }: { gap: SkillGapItem }) {
   );
 }
 
+// ── Skeleton Components (Day 25) ───────────────────────────────────
+function SummarySkeleton() {
+  return (
+    <div className={styles.summaryGrid}>
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className={styles.skeletonCard} />
+      ))}
+    </div>
+  );
+}
+
+function SkillCardSkeletonList() {
+  return (
+    <div className={styles.skillsList}>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className={styles.skeletonSkillCard} />
+      ))}
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────
 export default function SkillGapsPage() {
   const { token }  = useAuth();
   const router     = useRouter();
 
-  const [data,    setData]    = useState<UserSkillGapsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
-  const [filter,  setFilter]  = useState<"all" | "weak" | "moderate" | "strong">("all");
+  const [data,       setData]       = useState<UserSkillGapsResponse | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+  const [filter,     setFilter]     = useState<"all" | "weak" | "moderate" | "strong">("all");
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Day 25: cache skill gaps (avoid refetch on every navigation)
+  const CACHE_KEY = "ai_skill_gaps_cache_v1";
+  const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
   useEffect(() => {
     if (!token) return;
+
     const load = async () => {
+      setError(null);
+
+      // 1) Try cache first for instant UI
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { ts: number; data: UserSkillGapsResponse };
+          if (parsed?.ts && parsed?.data) {
+            const fresh = Date.now() - parsed.ts < CACHE_TTL_MS;
+            if (fresh) {
+              setData(parsed.data);
+              setLoading(false);
+              // Still do a background refresh (fast + keeps it correct)
+              setRefreshing(true);
+            }
+          }
+        }
+      } catch {
+        // ignore cache parse errors
+      }
+
+      // 2) Network fetch (source of truth)
       try {
         const result = await getUserSkillGaps(token);
         setData(result);
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: result }));
+        } catch {
+          // ignore storage failures
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to load skill gaps");
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     };
+
     load();
   }, [token]);
 
   // ── Filter ───────────────────────────────────────────────────
-  const filtered = data?.skill_gaps.filter(g =>
-    filter === "all" ? true : g.proficiency_level === filter
-  ) ?? [];
+  const filtered = useMemo(() => {
+    return data?.skill_gaps.filter((g) =>
+      filter === "all" ? true : g.proficiency_level === filter
+    ) ?? [];
+  }, [data, filter]);
 
   // ── Loading ──────────────────────────────────────────────────
   if (loading) {
     return (
       <ProtectedRoute>
-        <div className={styles.centerPage}>
-          <div className={styles.spinner} />
-          <p className={styles.loadingText}>Analyzing your skills...</p>
+        <div className={styles.page}>
+          <div className={styles.container}>
+
+            <div className={styles.pageHeader}>
+              <button
+                className={styles.backLink}
+                onClick={() => router.push("/dashboard")}
+              >
+                ← Dashboard
+              </button>
+              <h1 className={styles.pageTitle}>🎯 Skill Gap Analysis</h1>
+              <p className={styles.pageSub}>
+                Track your strengths and areas for improvement across all interviews
+              </p>
+            </div>
+
+            <SummarySkeleton />
+            <div className={styles.overviewCard}>
+              <div className={styles.skeletonTitle} />
+              <div className={styles.skeletonBar} />
+              <div className={styles.skeletonLegend} />
+              <div className={styles.skeletonMiniGrid} />
+            </div>
+
+            <div className={styles.filterRow}>
+              {["All", "Weak", "Moderate", "Strong"].map((t) => (
+                <div key={t} className={styles.skeletonPill} />
+              ))}
+            </div>
+
+            <SkillCardSkeletonList />
+          </div>
         </div>
       </ProtectedRoute>
     );
@@ -205,7 +292,12 @@ export default function SkillGapsPage() {
             >
               ← Dashboard
             </button>
-            <h1 className={styles.pageTitle}>🎯 Skill Gap Analysis</h1>
+
+            <div className={styles.titleRow}>
+              <h1 className={styles.pageTitle}>🎯 Skill Gap Analysis</h1>
+              {refreshing && <span className={styles.refreshing}>Refreshing…</span>}
+            </div>
+
             <p className={styles.pageSub}>
               Track your strengths and areas for improvement across all interviews
             </p>
@@ -338,15 +430,15 @@ export default function SkillGapsPage() {
                 onClick   = {() => setFilter(f)}
                 className = {`${styles.filterBtn} ${filter === f ? styles.filterActive : ""}`}
                 style={filter === f && f !== "all" ? {
-                  color     : getLevelColor(f),
+                  color      : getLevelColor(f),
                   borderColor: getLevelColor(f),
                   background : getLevelBg(f),
                 } : {}}
               >
-                {f === "all"      ? `All (${data.total_gaps})`          : ""}
-                {f === "weak"     ? `⚠️ Weak (${data.weak_count})`      : ""}
+                {f === "all"      ? `All (${data.total_gaps})`             : ""}
+                {f === "weak"     ? `⚠️ Weak (${data.weak_count})`         : ""}
                 {f === "moderate" ? `📈 Moderate (${data.moderate_count})` : ""}
-                {f === "strong"   ? `💪 Strong (${data.strong_count})`  : ""}
+                {f === "strong"   ? `💪 Strong (${data.strong_count})`     : ""}
               </button>
             ))}
           </div>

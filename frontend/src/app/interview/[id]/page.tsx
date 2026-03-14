@@ -56,6 +56,33 @@ function safeRemoveLocalStorage(key: string): void {
   }
 }
 
+// Small debounce helper for draft writes
+function useDebouncedCallback<T extends (...args: any[]) => void>(
+  cb: T,
+  delayMs: number
+) {
+  const cbRef = useRef(cb);
+  const tRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    cbRef.current = cb;
+  }, [cb]);
+
+  const debounced = useCallback((...args: Parameters<T>) => {
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => cbRef.current(...args), delayMs);
+  }, [delayMs]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (tRef.current) clearTimeout(tRef.current);
+    };
+  }, []);
+
+  return debounced;
+}
+
 // ─────────────────────────────────────────────────────────────────
 export default function InterviewSessionPage() {
   const { token }   = useAuth();
@@ -74,6 +101,9 @@ export default function InterviewSessionPage() {
   const [completing, setCompleting] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [phase, setPhase] = useState<"answering" | "feedback" | "finished">("answering");
+
+  // Draft save status (Day 25)
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   // ── Timer ─────────────────────────────────────────────────────
   const [elapsed,  setElapsed] = useState(0);
@@ -133,8 +163,6 @@ export default function InterviewSessionPage() {
   // ── Restore draft when current question changes (only in answering) ──
   useEffect(() => {
     if (!interviewId || !currentQ) return;
-
-    // Only restore drafts while user is typing answers (not feedback/finished)
     if (phase !== "answering") return;
 
     const key = draftKey(interviewId, currentQ.id);
@@ -144,8 +172,15 @@ export default function InterviewSessionPage() {
     if (lastLoadedDraftKeyRef.current !== key) {
       lastLoadedDraftKeyRef.current = key;
       setAnswer(saved ?? "");
+      setDraftStatus(saved ? "saved" : "idle");
     }
   }, [interviewId, currentQ?.id, phase]);
+
+  // Debounced localStorage write (Day 25)
+  const debouncedSaveDraft = useDebouncedCallback((key: string, value: string) => {
+    safeSetLocalStorage(key, value);
+    setDraftStatus("saved");
+  }, 350);
 
   // ── Autosave draft as user types (only in answering) ────────────
   useEffect(() => {
@@ -157,11 +192,14 @@ export default function InterviewSessionPage() {
     // If empty, remove draft to keep storage clean
     if (!answer || answer.trim().length === 0) {
       safeRemoveLocalStorage(key);
+      setDraftStatus("idle");
       return;
     }
 
-    safeSetLocalStorage(key, answer);
-  }, [answer, interviewId, currentQ?.id, phase]);
+    // Set saving state immediately, actual write is debounced
+    setDraftStatus("saving");
+    debouncedSaveDraft(key, answer);
+  }, [answer, interviewId, currentQ?.id, phase, debouncedSaveDraft]);
 
   // ── Submit Answer ──────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -179,6 +217,7 @@ export default function InterviewSessionPage() {
 
       // Clear draft after successful submit
       safeRemoveLocalStorage(draftKey(interviewId, currentQ.id));
+      setDraftStatus("idle");
 
       setEvaluation(result);
       setAllEvals(prev => [...prev, result]);
@@ -217,6 +256,7 @@ export default function InterviewSessionPage() {
       setCurrentIdx(prev => prev + 1);
       setEvaluation(null);
       setPhase("answering");
+      setDraftStatus("idle");
 
       // Do NOT blindly setAnswer("") here; draft restore effect will load it.
       // But we should clear any transient loaded-key guard so restore runs for next Q.
@@ -388,13 +428,24 @@ export default function InterviewSessionPage() {
                   disabled    = {submitting}
                   rows        = {8}
                 />
+
                 <div className={styles.answerFooter}>
-                  <span className={styles.charCount}>
-                    {answer.length} characters
-                    {answer.length < 50 && answer.length > 0 && (
-                      <span className={styles.charHint}> (aim for 100+ chars)</span>
+                  <div className={styles.answerFooterLeft}>
+                    <span className={styles.charCount}>
+                      {answer.length} characters
+                      {answer.length < 50 && answer.length > 0 && (
+                        <span className={styles.charHint}> (aim for 100+ chars)</span>
+                      )}
+                    </span>
+
+                    {/* Day 25: Draft status */}
+                    {answer.trim().length > 0 && (
+                      <span className={styles.draftStatus}>
+                        {draftStatus === "saving" ? "Saving draft..." : draftStatus === "saved" ? "Draft saved" : ""}
+                      </span>
                     )}
-                  </span>
+                  </div>
+
                   <button
                     onClick   = {handleSubmit}
                     disabled  = {submitting || answer.trim().length < 10}

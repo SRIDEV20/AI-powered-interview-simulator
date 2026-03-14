@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -10,6 +10,7 @@ import {
   getInterviewList,
   UserStats,
   InterviewSummary,
+  InterviewListResponse,
 } from "@/lib/api";
 import styles from "./page.module.css";
 
@@ -60,32 +61,90 @@ export default function DashboardPage() {
   const { user, token } = useAuth();
   const router          = useRouter();
 
-  const [stats,      setStats]      = useState<UserStats | null>(null);
-  const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
+  const [stats,       setStats]       = useState<UserStats | null>(null);
+  const [interviews,  setInterviews]  = useState<InterviewSummary[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [refreshing,  setRefreshing]  = useState(false);
 
-  // ── Fetch data ──────────────────────────────────────────────────
+  // Day 25: cache dashboard stats + interview list (to reduce API calls)
+  const STATS_CACHE_KEY = "ai_dashboard_stats_cache_v1";
+  const LIST_CACHE_KEY  = "ai_dashboard_interviews_cache_v1";
+  const CACHE_TTL_MS    = 60 * 1000; // 60 seconds
+
+  const canShowContent = useMemo(() => {
+    return Boolean(stats) && interviews.length >= 0;
+  }, [stats, interviews]);
+
+  // ── Fetch data (cache-first + background refresh) ��───────────────
   useEffect(() => {
     if (!token) return;
 
-    const fetchData = async () => {
+    const tryLoadCache = () => {
       try {
+        const statsRaw = localStorage.getItem(STATS_CACHE_KEY);
+        const listRaw  = localStorage.getItem(LIST_CACHE_KEY);
+
+        const now = Date.now();
+
+        if (statsRaw) {
+          const parsed = JSON.parse(statsRaw) as { ts: number; data: UserStats };
+          if (parsed?.ts && parsed?.data && now - parsed.ts < CACHE_TTL_MS) {
+            setStats(parsed.data);
+          }
+        }
+
+        if (listRaw) {
+          const parsed = JSON.parse(listRaw) as { ts: number; data: InterviewListResponse };
+          if (parsed?.ts && parsed?.data && now - parsed.ts < CACHE_TTL_MS) {
+            setInterviews(parsed.data.interviews ?? []);
+          }
+        }
+      } catch {
+        // ignore cache parse errors
+      }
+    };
+
+    const fetchData = async () => {
+      setError(null);
+
+      // Show cached content quickly, then refresh in background
+      tryLoadCache();
+
+      // If cache populated, avoid blocking UI with full loading state
+      const hasSomeCached = Boolean(stats) || interviews.length > 0;
+      if (hasSomeCached) {
+        setRefreshing(true);
+        setLoading(false);
+      } else {
         setLoading(true);
+      }
+
+      try {
         const [statsData, listData] = await Promise.all([
           getUserStats(token),
           getInterviewList(token),
         ]);
+
         setStats(statsData);
         setInterviews(listData.interviews);
+
+        try {
+          localStorage.setItem(STATS_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: statsData }));
+          localStorage.setItem(LIST_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: listData }));
+        } catch {
+          // ignore localStorage failures
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // ─────────────────────────────────────────────────────────────────
@@ -102,6 +161,11 @@ export default function DashboardPage() {
               </h1>
               <p className={styles.welcomeSub}>
                 Ready to practice? Let&apos;s sharpen your interview skills today.
+                {refreshing && (
+                  <span style={{ marginLeft: 8, color: "var(--muted)", fontSize: "0.85rem" }}>
+                    (Refreshing…)
+                  </span>
+                )}
               </p>
             </div>
 
@@ -122,7 +186,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── Stats Cards ── */}
-          {loading ? (
+          {loading && !canShowContent ? (
             <div className={styles.loadingRow}>
               {[1, 2, 3, 4].map(i => (
                 <div key={i} className={styles.skeletonCard} />
@@ -215,7 +279,7 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {loading ? (
+            {loading && interviews.length === 0 ? (
               <div className={styles.historyList}>
                 {[1, 2, 3].map(i => (
                   <div key={i} className={styles.skeletonRow} />

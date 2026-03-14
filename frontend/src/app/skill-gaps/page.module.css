@@ -115,6 +115,18 @@
 
 .backLink:hover { color: var(--brand); }
 
+.titleRow {
+  display     : flex;
+  align-items : baseline;
+  gap         : 10px;
+  flex-wrap   : wrap;
+}
+
+.refreshing {
+  font-size: 0.8rem;
+  color    : rgba(255,255,255,0.45);
+}
+
 .pageTitle {
   font-size    : 1.7rem;
   font-weight  : 800;
@@ -127,7 +139,7 @@
   color    : var(--muted);
 }
 
-/* ══ SUMMARY CARDS ════════════════════════════════════════════ */
+/* ══ SUMMARY CARDS ══════��═════════════════════════════════════ */
 .summaryGrid {
   display             : grid;
   grid-template-columns: repeat(4, 1fr);
@@ -469,10 +481,76 @@
 
 .dashBtn:hover { background: rgba(255,255,255,0.05); }
 
+/* ── Day 25: Skeleton Loading UI ───────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.skeletonCard {
+  height       : 92px;
+  background   : var(--panel);
+  border       : 1px solid var(--border);
+  border-radius: var(--radius);
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonSkillCard {
+  height       : 160px;
+  background   : var(--panel);
+  border       : 1px solid var(--border);
+  border-radius: var(--radius);
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonTitle {
+  height       : 14px;
+  width        : 180px;
+  background   : rgba(255,255,255,0.06);
+  border-radius: 8px;
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonBar {
+  height       : 14px;
+  width        : 100%;
+  background   : rgba(255,255,255,0.06);
+  border-radius: 99px;
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonLegend {
+  height       : 12px;
+  width        : 60%;
+  background   : rgba(255,255,255,0.06);
+  border-radius: 8px;
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonMiniGrid {
+  height       : 140px;
+  width        : 100%;
+  background   : rgba(255,255,255,0.04);
+  border       : 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonPill {
+  height       : 36px;
+  width        : 120px;
+  background   : rgba(255,255,255,0.05);
+  border       : 1px solid rgba(255,255,255,0.06);
+  border-radius: 99px;
+  animation    : pulse 1.5s ease-in-out infinite;
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .summaryGrid { grid-template-columns: repeat(2, 1fr); }
   .miniBar     { grid-template-columns: 100px 1fr 36px; }
   .actions     { flex-direction: column; }
   .newInterviewBtn, .dashBtn { width: 100%; text-align: center; }
+
+  .skeletonPill { width: 46%; }
 }

@@ -26,8 +26,21 @@ function getScoreLabel(score: number): string {
   return "Needs Work";
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+function isValidDateString(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+
+  // Avoid showing epoch when backend sends "", null, 0-like values
+  // (1970-01-01)
+  if (t <= 0) return false;
+
+  return true;
+}
+
+function formatDateSafe(iso: string | null | undefined): string {
+  if (!isValidDateString(iso)) return "—";
+  return new Date(iso!).toLocaleDateString("en-US", {
     month : "short",
     day   : "numeric",
     year  : "numeric",
@@ -36,33 +49,48 @@ function formatDate(iso: string): string {
   });
 }
 
-function getDuration(start: string, end: string): string {
-  const diff = Math.floor(
-    (new Date(end).getTime() - new Date(start).getTime()) / 1000
-  );
-  const m = Math.floor(diff / 60);
-  const s = diff % 60;
+function getDurationSafe(start: string | null | undefined, end: string | null | undefined): string {
+  if (!isValidDateString(start) || !isValidDateString(end)) return "—";
+
+  const startMs = new Date(start!).getTime();
+  const endMs   = new Date(end!).getTime();
+
+  const diffSec = Math.floor((endMs - startMs) / 1000);
+
+  // Protect against negative or absurd durations
+  if (!Number.isFinite(diffSec) || diffSec < 0) return "—";
+
+  const m = Math.floor(diffSec / 60);
+  const s = diffSec % 60;
   return `${m}m ${s}s`;
 }
 
+function isNumber(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n);
+}
+
+function formatScore(score: number | null | undefined, digits: number = 1): string {
+  if (!isNumber(score)) return "—";
+  return `${score.toFixed(digits)}%`;
+}
+
 // ── Score Ring ─────────────────────────────────────────────────────
-function ScoreRing({ score }: { score: number }) {
-  const radius      = 54;
+function ScoreRing({ score }: { score: number | null }) {
+  const safeScore = isNumber(score) ? score : 0;
+  const radius = 54;
   const circumference = 2 * Math.PI * radius;
-  const offset      = circumference - (score / 100) * circumference;
-  const color       = getScoreColor(score);
+  const offset = circumference - (safeScore / 100) * circumference;
+  const color = isNumber(score) ? getScoreColor(score) : "rgba(255,255,255,0.35)";
 
   return (
     <div className={styles.ringWrapper}>
       <svg width="130" height="130" className={styles.ringSvg}>
-        {/* Background circle */}
         <circle
           cx="65" cy="65" r={radius}
           fill="none"
           stroke="rgba(255,255,255,0.06)"
           strokeWidth="10"
         />
-        {/* Score arc */}
         <circle
           cx="65" cy="65" r={radius}
           fill="none"
@@ -75,9 +103,10 @@ function ScoreRing({ score }: { score: number }) {
           style={{ transition: "stroke-dashoffset 1s ease" }}
         />
       </svg>
+
       <div className={styles.ringInner}>
         <span className={styles.ringScore} style={{ color }}>
-          {score.toFixed(1)}%
+          {formatScore(score, 1)}
         </span>
         <span className={styles.ringLabel}>Overall</span>
       </div>
@@ -88,11 +117,16 @@ function ScoreRing({ score }: { score: number }) {
 // ── Question Card ──────────────────────────────────────────────────
 function QuestionCard({ q, idx }: { q: QuestionScore; idx: number }) {
   const [open, setOpen] = useState(false);
-  const color           = getScoreColor(q.score);
+
+  const hasScore = isNumber(q.score);
+  const scoreVal = hasScore ? q.score : 0;
+
+  const color = hasScore ? getScoreColor(scoreVal) : "rgba(255,255,255,0.35)";
+  const scoreText = formatScore(q.score, 1);
+  const labelText = hasScore ? getScoreLabel(scoreVal) : (q.answered ? "—" : "Not Answered");
 
   return (
     <div className={styles.qCard}>
-      {/* Header */}
       <button
         className={styles.qCardHeader}
         onClick={() => setOpen(o => !o)}
@@ -101,15 +135,13 @@ function QuestionCard({ q, idx }: { q: QuestionScore; idx: number }) {
           <span className={styles.qNum}>Q{idx + 1}</span>
           <span className={styles.qText}>{q.question_text}</span>
         </div>
+
         <div className={styles.qCardRight}>
-          <span
-            className={styles.qScore}
-            style={{ color }}
-          >
-            {q.score.toFixed(1)}%
+          <span className={styles.qScore} style={{ color }}>
+            {scoreText}
           </span>
           <span className={styles.qScoreLabel} style={{ color }}>
-            {getScoreLabel(q.score)}
+            {labelText}
           </span>
           <span className={styles.qChevron}>
             {open ? "▲" : "▼"}
@@ -117,56 +149,66 @@ function QuestionCard({ q, idx }: { q: QuestionScore; idx: number }) {
         </div>
       </button>
 
-      {/* Score Bar */}
       <div className={styles.qBarBg}>
         <div
           className={styles.qBarFill}
-          style={{ width: `${q.score}%`, background: color }}
+          style={{
+            width: `${scoreVal}%`,
+            background: color,
+            opacity: hasScore ? 1 : 0.25,
+          }}
         />
       </div>
 
-      {/* Expanded Details */}
       {open && (
         <div className={styles.qDetails}>
-
-          {/* Feedback */}
-          <div className={styles.qFeedback}>
-            <span className={styles.qFeedbackIcon}>💬</span>
-            <p className={styles.qFeedbackText}>{q.feedback}</p>
-          </div>
-
-          {/* Strengths + Improvements */}
-          <div className={styles.qSiGrid}>
-            <div className={styles.qSiCard}>
-              <h5 className={styles.qSiTitle} style={{ color: "#22c55e" }}>
-                ✅ Strengths
-              </h5>
-              {q.strengths.length > 0 ? (
-                <ul className={styles.qSiList}>
-                  {q.strengths.map((s, i) => (
-                    <li key={i} className={styles.qSiItem}>{s}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={styles.qSiEmpty}>Keep practicing!</p>
-              )}
+          {!q.answered ? (
+            <div className={styles.qFeedback}>
+              <span className={styles.qFeedbackIcon}>ℹ️</span>
+              <p className={styles.qFeedbackText}>
+                This question was not answered, so no detailed feedback is available.
+              </p>
             </div>
-            <div className={styles.qSiCard}>
-              <h5 className={styles.qSiTitle} style={{ color: "#f97316" }}>
-                📈 Improvements
-              </h5>
-              {q.improvements.length > 0 ? (
-                <ul className={styles.qSiList}>
-                  {q.improvements.map((s, i) => (
-                    <li key={i} className={styles.qSiItem}>{s}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={styles.qSiEmpty}>Great answer!</p>
-              )}
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className={styles.qFeedback}>
+                <span className={styles.qFeedbackIcon}>💬</span>
+                <p className={styles.qFeedbackText}>{q.feedback}</p>
+              </div>
 
+              <div className={styles.qSiGrid}>
+                <div className={styles.qSiCard}>
+                  <h5 className={styles.qSiTitle} style={{ color: "#22c55e" }}>
+                    ✅ Strengths
+                  </h5>
+                  {q.strengths.length > 0 ? (
+                    <ul className={styles.qSiList}>
+                      {q.strengths.map((s, i) => (
+                        <li key={i} className={styles.qSiItem}>{s}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={styles.qSiEmpty}>Keep practicing!</p>
+                  )}
+                </div>
+
+                <div className={styles.qSiCard}>
+                  <h5 className={styles.qSiTitle} style={{ color: "#f97316" }}>
+                    📈 Improvements
+                  </h5>
+                  {q.improvements.length > 0 ? (
+                    <ul className={styles.qSiList}>
+                      {q.improvements.map((s, i) => (
+                        <li key={i} className={styles.qSiItem}>{s}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={styles.qSiEmpty}>Great answer!</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -199,6 +241,11 @@ export default function ResultsPage() {
     load();
   }, [token, interviewId]);
 
+  // Sorting without hooks (safe with early returns)
+  const sortedQuestions = data
+    ? [...data.question_scores].sort((a, b) => a.order_number - b.order_number)
+    : [];
+
   // ── Loading ──────────────────────────────────────────────────
   if (loading) {
     return (
@@ -228,7 +275,9 @@ export default function ResultsPage() {
     );
   }
 
-  const scoreColor = getScoreColor(data.overall_score);
+  const scoreColor = isNumber(data.overall_score)
+    ? getScoreColor(data.overall_score)
+    : "rgba(255,255,255,0.35)";
 
   // ────────────────────────────────────────────────────────────
   return (
@@ -246,7 +295,7 @@ export default function ResultsPage() {
             </button>
             <h1 className={styles.pageTitle}>📊 Interview Results</h1>
             <p className={styles.pageSub}>
-              {data.job_role} · {data.difficulty} · {formatDate(data.completed_at)}
+              {data.job_role} · {data.difficulty} · {formatDateSafe(data.completed_at)}
             </p>
           </div>
 
@@ -268,34 +317,39 @@ export default function ResultsPage() {
                 <span className={styles.statVal}>{data.answered}/{data.total_questions}</span>
                 <span className={styles.statLabel}>Answered</span>
               </div>
+
               <div className={styles.statBox}>
-                <span
-                  className={styles.statVal}
-                  style={{ color: scoreColor }}
-                >
-                  {data.overall_score.toFixed(1)}%
+                <span className={styles.statVal} style={{ color: scoreColor }}>
+                  {formatScore(data.overall_score, 1)}
                 </span>
                 <span className={styles.statLabel}>Overall Score</span>
               </div>
-              <div className={styles.statBox}>
-                <span className={styles.statVal}>{data.completion_rate.toFixed(0)}%</span>
-                <span className={styles.statLabel}>Completion</span>
-              </div>
+
               <div className={styles.statBox}>
                 <span className={styles.statVal}>
-                  {getDuration(data.started_at, data.completed_at)}
+                  {isNumber(data.completion_rate) ? `${data.completion_rate.toFixed(0)}%` : "—"}
+                </span>
+                <span className={styles.statLabel}>Completion</span>
+              </div>
+
+              <div className={styles.statBox}>
+                <span className={styles.statVal}>
+                  {getDurationSafe(data.started_at, data.completed_at)}
                 </span>
                 <span className={styles.statLabel}>Duration</span>
               </div>
 
-              {/* Category Scores */}
               {data.category_scores.map(c => (
                 <div key={c.category} className={styles.statBox}>
                   <span
                     className={styles.statVal}
-                    style={{ color: getScoreColor(c.average_score) }}
+                    style={{
+                      color: isNumber(c.average_score)
+                        ? getScoreColor(c.average_score)
+                        : "rgba(255,255,255,0.35)"
+                    }}
                   >
-                    {c.average_score.toFixed(1)}%
+                    {formatScore(c.average_score, 1)}
                   </span>
                   <span className={styles.statLabel} style={{ textTransform: "capitalize" }}>
                     {c.category}
@@ -315,7 +369,6 @@ export default function ResultsPage() {
 
           {/* ══ TOP STRENGTHS + IMPROVEMENTS ═════════════════════ */}
           <div className={styles.siSection}>
-
             <div className={styles.siCard}>
               <h2 className={styles.siTitle} style={{ color: "#22c55e" }}>
                 ✅ Top Strengths
@@ -343,7 +396,6 @@ export default function ResultsPage() {
                 ))}
               </ul>
             </div>
-
           </div>
 
           {/* ══ QUESTION BREAKDOWN ═══════════════════════════════ */}
@@ -351,15 +403,13 @@ export default function ResultsPage() {
             <h2 className={styles.sectionTitle}>
               📝 Question Breakdown
               <span className={styles.sectionCount}>
-                {data.question_scores.length} questions
+                {sortedQuestions.length} questions
               </span>
             </h2>
             <div className={styles.questionsList}>
-              {data.question_scores
-                .sort((a, b) => a.order_number - b.order_number)
-                .map((q, i) => (
-                  <QuestionCard key={q.question_id} q={q} idx={i} />
-                ))}
+              {sortedQuestions.map((q, i) => (
+                <QuestionCard key={q.question_id} q={q} idx={i} />
+              ))}
             </div>
           </div>
 

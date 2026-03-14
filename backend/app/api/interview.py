@@ -214,10 +214,16 @@ async def get_interview_score(
         logger.info(f"📊 Scoring interview {interview_id}")
         result = scoring_service.get_interview_score(
             interview_id     = interview_id,
+            user_id          = str(current_user.id),
             db               = db,
             generate_summary = generate_summary
         )
         return result
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -246,9 +252,15 @@ async def complete_interview(
     try:
         result = interview_service.complete_interview(
             interview_id = interview_id,
+            user_id      = str(current_user.id),
             db           = db
         )
         return result
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # ─── Category Score ───────────────────────────────────────────────
@@ -74,5 +74,17 @@ class InterviewScoreResponse(BaseModel):
     started_at    : datetime
     completed_at  : Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("started_at", "completed_at", when_used="json")
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+
+        # DB stores UTC as naive datetime; normalize to explicit UTC ISO output.
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+
+        return value.isoformat().replace("+00:00", "Z")

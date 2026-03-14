@@ -1,6 +1,7 @@
 import uuid
 import json
 import logging
+from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
@@ -187,6 +188,7 @@ Return ONLY this JSON:
     def get_interview_score(
         self,
         interview_id   : str,
+        user_id        : str,
         db             : Session,
         generate_summary: bool = True
     ) -> InterviewScoreResponse:
@@ -209,6 +211,34 @@ Return ONLY this JSON:
 
         if not interview:
             raise ValueError(f"Interview {interview_id} not found")
+
+        if str(interview.user_id) != user_id:
+            raise PermissionError("You are not allowed to view this interview score")
+
+        repaired_timestamps = False
+
+        if interview.started_at is None:
+            interview.started_at = datetime.utcnow()
+            repaired_timestamps = True
+
+        if (
+            interview.status == InterviewStatus.COMPLETED
+            and interview.completed_at is None
+        ):
+            interview.completed_at = datetime.utcnow()
+            repaired_timestamps = True
+
+        if (
+            interview.started_at is not None
+            and interview.completed_at is not None
+            and interview.completed_at < interview.started_at
+        ):
+            interview.completed_at = interview.started_at
+            repaired_timestamps = True
+
+        if repaired_timestamps:
+            db.commit()
+            db.refresh(interview)
 
         # ── Fetch Questions ───────────────────────────────────────
         questions = db.query(Question).filter(
